@@ -78,7 +78,7 @@ class WorkflowProcessor:
 
     @observe() 
     def step_write_article(self, prompt_config, extraction_json, draft_json, model_settings):
-        self.logger.info("✍️ Phase 3: Artikel schreiben...")
+        self.logger.info("✍️ Phase 3: Artikel schreiben (JSON)...")
         system_prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
         
         json1 = json.dumps(extraction_json, ensure_ascii=False)
@@ -89,11 +89,10 @@ class WorkflowProcessor:
             f"2. Redaktionsvorschläge (JSON):\n{json2}"
         )
 
-        # Output ist hier Text (Markdown), kein JSON
         return self._api_call(
             system_prompt=system_prompt,
             user_input=user_msg,
-            json_mode=False,
+            json_mode=True, 
             model_settings=model_settings,
             name="gemini-write-article"
         )

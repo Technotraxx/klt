@@ -114,9 +114,7 @@ with st.sidebar:
     available_models = [
         "gemini-flash-latest",
         "gemini-flash-lite-latest",
-        "gemini-3-pro-preview", # Hinweis: Prüfen ob du dafür Access hast
-        "gemini-1.5-pro",       # Fallback als Sicherheit
-        "gemini-2.0-flash-exp"  # Aktuelles Experimental Modell
+        "gemini-3-pro-preview"        
     ]
     
     model_choice = st.selectbox("Modell", available_models, index=0)

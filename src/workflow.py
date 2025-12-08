@@ -5,9 +5,9 @@ Hauptverarbeitungslogik ohne Colab-Abhängigkeiten
 
 import json
 import datetime
-from .document_parser import DocumentParser
-from .prompt_manager import PromptManager
-from .logger import WorkflowLogger, StatusTracker
+from document_parser import DocumentParser
+from prompt_manager import PromptManager
+from logger import WorkflowLogger, StatusTracker
 
 class WorkflowProcessor:
     def __init__(self, config):

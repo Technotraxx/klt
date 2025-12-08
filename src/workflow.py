@@ -1,21 +1,18 @@
 """
-Workflow Modul - LangFuse V3 Compliant
+Workflow Modul - Updated for 4-Step Process & Date Injection
 """
 import json
 import os
+from datetime import datetime
 
-# --- Imports & V3 Safety Check ---
+# Langfuse Import Check
 LANGFUSE_AVAILABLE = False
 try:
-    # ✅ RICHTIG für V3: Import direkt aus langfuse
     from langfuse import observe, Langfuse
     LANGFUSE_AVAILABLE = True
 except ImportError:
-    print("⚠️ Langfuse SDK nicht gefunden oder zu alt.")
-    # Dummy Decorator
     def observe(*args, **kwargs):
-        def decorator(func):
-            return func
+        def decorator(func): return func
         return decorator
 
 from document_parser import DocumentParser
@@ -25,27 +22,22 @@ from logger import WorkflowLogger, StatusTracker
 class WorkflowProcessor:
     def __init__(self, config):
         self.config = config
-        
-        # Client für Prompt Management (V3 Style)
         lf_client = None
         if config.enable_langfuse and LANGFUSE_AVAILABLE:
             try:
-                # V3: Initialisierung ohne Args (holt aus Env)
                 lf_client = Langfuse()
-            except Exception as e:
-                print(f"⚠️ Langfuse Init: {e}")
+            except Exception: pass
 
-        self.prompt_manager = PromptManager(
-            config.PROMPT_DIR, 
-            langfuse_client=lf_client,
-            use_langfuse=config.enable_langfuse and LANGFUSE_AVAILABLE
-        )
+        self.prompt_manager = PromptManager(config.PROMPT_DIR, langfuse_client=lf_client, use_langfuse=config.enable_langfuse)
         self.document_parser = DocumentParser()
         self.logger = WorkflowLogger()
-        self.status_tracker = StatusTracker()
+
+    def get_date_string(self):
+        # Gibt das aktuelle Datum formatiert zurück (z.B. 08. Dezember 2025)
+        return datetime.now().strftime("%d. %B %Y")
 
     # ----------------------------------------------------------------
-    # STEPS - V3 Pattern 4: Verschachtelte Spans (automatisch)
+    # STEPS
     # ----------------------------------------------------------------
 
     @observe() 
@@ -56,95 +48,139 @@ class WorkflowProcessor:
     @observe() 
     def step_extraction(self, prompt_config, context, model_settings):
         self.logger.info("🤖 Phase 1: Daten-Extraktion...")
-        prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
-        return self._api_call(prompt, context, True, model_settings, "gemini-extraction")
+        system_prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
+        
+        # User Message ist der reine Kontext (Dateien + Text)
+        return self._api_call(
+            system_prompt=system_prompt,
+            user_input=context,
+            json_mode=True,
+            model_settings=model_settings,
+            name="gemini-extraction"
+        )
 
     @observe() 
-    def step_draft(self, prompt_config, json_data, model_settings):
-        self.logger.info("✍️ Phase 2: Entwurf...")
-        prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
-        json_str = json.dumps(json_data, ensure_ascii=False) if not isinstance(json_data, str) else json_data
-        return self._api_call(prompt, json_str, False, model_settings, "gemini-draft")
+    def step_draft_concept(self, prompt_config, extraction_json, model_settings):
+        self.logger.info("💡 Phase 2: Konzept/Entwurf (JSON)...")
+        system_prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
+        
+        # Input ist das JSON aus Phase 1
+        json_str = json.dumps(extraction_json, ensure_ascii=False) if not isinstance(extraction_json, str) else extraction_json
+        
+        # WICHTIG: Step 2 muss JSON zurückgeben, damit Step 3 damit arbeiten kann
+        return self._api_call(
+            system_prompt=system_prompt,
+            user_input=f"EXTRAHIERTE DATEN:\n{json_str}",
+            json_mode=True, 
+            model_settings=model_settings,
+            name="gemini-draft-concept"
+        )
 
     @observe() 
-    def step_check(self, prompt_config, json_data, draft_text, model_settings):
-        self.logger.info("🔍 Phase 3: Faktenprüfung...")
-        prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
-        json_str = json.dumps(json_data, ensure_ascii=False) if not isinstance(json_data, str) else json_data
-        check_input = f"DATEN:\n{json_str}\n\nENTWURF:\n{draft_text}"
-        return self._api_call(prompt, check_input, False, model_settings, "gemini-check")
+    def step_write_article(self, prompt_config, extraction_json, draft_json, model_settings):
+        self.logger.info("✍️ Phase 3: Artikel schreiben...")
+        system_prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
+        
+        json1 = json.dumps(extraction_json, ensure_ascii=False)
+        json2 = json.dumps(draft_json, ensure_ascii=False)
+        
+        user_msg = (
+            f"1. Extrahierte Daten (JSON):\n{json1}\n\n"
+            f"2. Redaktionsvorschläge (JSON):\n{json2}"
+        )
+
+        # Output ist hier Text (Markdown), kein JSON
+        return self._api_call(
+            system_prompt=system_prompt,
+            user_input=user_msg,
+            json_mode=False,
+            model_settings=model_settings,
+            name="gemini-write-article"
+        )
+
+    @observe() 
+    def step_check(self, prompt_config, article_text, extraction_json, original_input, model_settings):
+        self.logger.info("🔍 Phase 4: Faktenprüfung...")
+        system_prompt = self.prompt_manager.load_prompt_by_config(prompt_config)
+        
+        json_str = json.dumps(extraction_json, ensure_ascii=False)
+        
+        user_msg = (
+            f"ORIGINAL INPUT (Rohdaten):\n{original_input}\n\n"
+            f"EXTRAHIERTE DATEN (Strukturiert):\n{json_str}\n\n"
+            f"ZU PRÜFENDER ARTIKEL:\n{article_text}"
+        )
+        
+        return self._api_call(
+            system_prompt=system_prompt,
+            user_input=user_msg,
+            json_mode=False,
+            model_settings=model_settings,
+            name="gemini-final-check"
+        )
 
     # ----------------------------------------------------------------
-    # CORE API CALL - V3 Pattern: Generation mit Context Manager
+    # CORE API CALL
     # ----------------------------------------------------------------
 
-    def _api_call(self, prompt, context, json_mode, model_settings, name):
-        """
-        Führt den API Call aus und trackt ihn manuell als Generation.
-        """
+    def _api_call(self, system_prompt, user_input, json_mode, model_settings, name):
         settings = model_settings or {"model": None, "temp": 0.1}
         model_name = settings.get("model", "gemini-1.5-flash")
-        full_prompt = f"{prompt}\n\nINPUT:\n{context}"
         
-        # Logik ohne Tracing (Fallback)
-        if not (self.config.enable_langfuse and LANGFUSE_AVAILABLE):
-            return self._execute_gemini(full_prompt, model_name, settings.get("temp"), json_mode)
-
-        # Logik MIT V3 Tracing (Context Manager Pattern)
-        langfuse = Langfuse()
+        # Datum Injection in den System Prompt
+        date_str = self.get_date_string()
+        full_system_prompt = f"CURRENT DATE: {date_str}\n\n{system_prompt}"
         
-        try:
-            # KORREKTUR HIER: model_parameters statt modelParameters
-            with langfuse.start_as_current_generation(
-                name=name,
-                model=model_name,
-                model_parameters={"temperature": settings.get("temp"), "json_mode": json_mode},
-                input=full_prompt
-            ) as generation:
-                
-                # Der eigentliche Call
-                response = self.config.generate_content(
-                    full_prompt,
-                    model_name=model_name,
-                    temperature=settings.get("temp", 0.1),
-                    json_mode=json_mode
-                )
-                
-                text_response = response.text
-                
-                # Usage extrahieren
-                usage_dict = None
-                if hasattr(response, 'usage_metadata') and response.usage_metadata:
-                    usage_dict = {
-                        "input": response.usage_metadata.prompt_token_count,
-                        "output": response.usage_metadata.candidates_token_count,
-                        "total": response.usage_metadata.total_token_count
-                    }
+        # Tracing Logic
+        if self.config.enable_langfuse and LANGFUSE_AVAILABLE:
+            langfuse = Langfuse()
+            try:
+                with langfuse.start_as_current_generation(
+                    name=name,
+                    model=model_name,
+                    model_parameters={"temperature": settings.get("temp"), "json_mode": json_mode},
+                    input=[{"role": "system", "content": full_system_prompt}, {"role": "user", "content": user_input}]
+                ) as generation:
+                    
+                    response = self.config.generate_content(
+                        user_content=user_input,
+                        system_instruction=full_system_prompt,
+                        model_name=model_name,
+                        temperature=settings.get("temp", 0.1),
+                        json_mode=json_mode
+                    )
+                    
+                    text_response = response.text
+                    
+                    usage_dict = None
+                    if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                        usage_dict = {
+                            "input": response.usage_metadata.prompt_token_count,
+                            "output": response.usage_metadata.candidates_token_count,
+                            "total": response.usage_metadata.total_token_count
+                        }
 
-                # V3: Generation updaten
-                generation.update(
-                    output=text_response,
-                    usage=usage_dict
-                )
-                
-                # Output verarbeiten
-                if json_mode:
-                    clean_text = text_response.replace("```json", "").replace("```", "").strip()
-                    return json.loads(clean_text)
-                return text_response
+                    generation.update(output=text_response, usage=usage_dict)
+                    
+                    if json_mode:
+                        clean = text_response.replace("```json", "").replace("```", "").strip()
+                        return json.loads(clean)
+                    return text_response
 
-        except Exception as e:
-            # Da wir im "try" des "with" blocks sind, müssen wir den Fehler fangen
-            # Wenn Langfuse selbst crashed, wollen wir trotzdem weitermachen?
-            # Besser: Fehler loggen und Fallback versuchen oder Fehler werfen
-            print(f"Tracking Error: {e}")
-            # Fallback Call ohne Tracking, falls es am Tracking lag
-            return self._execute_gemini(full_prompt, model_name, settings.get("temp"), json_mode)
+            except Exception as e:
+                print(f"Tracking Error: {e}")
+                # Fallback falls Langfuse failt
+                return self._execute_gemini(full_system_prompt, user_input, model_name, settings.get("temp"), json_mode)
+        else:
+            return self._execute_gemini(full_system_prompt, user_input, model_name, settings.get("temp"), json_mode)
 
-    def _execute_gemini(self, prompt, model, temp, json_mode):
-        """Helper für Ausführung ohne Tracing"""
+    def _execute_gemini(self, system_prompt, user_input, model, temp, json_mode):
         response = self.config.generate_content(
-            prompt, model_name=model, temperature=temp, json_mode=json_mode
+            user_content=user_input,
+            system_instruction=system_prompt,
+            model_name=model, 
+            temperature=temp, 
+            json_mode=json_mode
         )
         text = response.text
         if json_mode:
@@ -153,10 +189,8 @@ class WorkflowProcessor:
         return text
 
     def flush_stats(self):
-        """V3 Pattern 5: Flush am Ende"""
         if self.config.enable_langfuse and LANGFUSE_AVAILABLE:
             try:
                 from langfuse import flush
                 flush()
-            except Exception:
-                pass
+            except Exception: pass

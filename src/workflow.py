@@ -80,8 +80,7 @@ class WorkflowProcessor:
 
     def _api_call(self, prompt, context, json_mode, model_settings, name):
         """
-        Führt den API Call aus und trackt ihn manuell als Generation,
-        um Usage-Daten korrekt zu erfassen (da Gemini keine native Integration hat).
+        Führt den API Call aus und trackt ihn manuell als Generation.
         """
         settings = model_settings or {"model": None, "temp": 0.1}
         model_name = settings.get("model", "gemini-1.5-flash")
@@ -94,14 +93,15 @@ class WorkflowProcessor:
         # Logik MIT V3 Tracing (Context Manager Pattern)
         langfuse = Langfuse()
         
-        # "start_as_current_generation" ist perfekt für manuelle Instrumentierung
-        with langfuse.start_as_current_generation(
-            name=name,
-            model=model_name,
-            modelParameters={"temperature": settings.get("temp"), "json_mode": json_mode},
-            input=full_prompt
-        ) as generation:
-            try:
+        try:
+            # KORREKTUR HIER: model_parameters statt modelParameters
+            with langfuse.start_as_current_generation(
+                name=name,
+                model=model_name,
+                model_parameters={"temperature": settings.get("temp"), "json_mode": json_mode},
+                input=full_prompt
+            ) as generation:
+                
                 # Der eigentliche Call
                 response = self.config.generate_content(
                     full_prompt,
@@ -132,11 +132,14 @@ class WorkflowProcessor:
                     clean_text = text_response.replace("```json", "").replace("```", "").strip()
                     return json.loads(clean_text)
                 return text_response
-                
-            except Exception as e:
-                # Error Tracking
-                generation.update(level="ERROR", status_message=str(e))
-                raise e
+
+        except Exception as e:
+            # Da wir im "try" des "with" blocks sind, müssen wir den Fehler fangen
+            # Wenn Langfuse selbst crashed, wollen wir trotzdem weitermachen?
+            # Besser: Fehler loggen und Fallback versuchen oder Fehler werfen
+            print(f"Tracking Error: {e}")
+            # Fallback Call ohne Tracking, falls es am Tracking lag
+            return self._execute_gemini(full_prompt, model_name, settings.get("temp"), json_mode)
 
     def _execute_gemini(self, prompt, model, temp, json_mode):
         """Helper für Ausführung ohne Tracing"""
@@ -153,7 +156,6 @@ class WorkflowProcessor:
         """V3 Pattern 5: Flush am Ende"""
         if self.config.enable_langfuse and LANGFUSE_AVAILABLE:
             try:
-                # ✅ RICHTIG: flush importieren oder via Client
                 from langfuse import flush
                 flush()
             except Exception:

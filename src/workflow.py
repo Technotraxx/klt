@@ -4,6 +4,7 @@ Workflow Modul - Updated for Langfuse Tracing
 import json
 import os
 from datetime import datetime
+from models import DEFAULT_MODEL
 
 # Langfuse Import Check
 LANGFUSE_AVAILABLE = False
@@ -123,7 +124,9 @@ class WorkflowProcessor:
 
     def _api_call(self, system_prompt, user_input, json_mode, model_settings, name):
         settings = model_settings or {"model": None, "temp": 0.1}
-        model_name = settings.get("model", "gemini-1.5-flash")
+        
+        # --- NEU: Nutzung des Defaults aus models.py ---
+        model_name = settings.get("model", DEFAULT_MODEL)
         
         date_str = self.get_date_string()
         full_system_prompt = f"CURRENT DATE: {date_str}\n\n{system_prompt}"
@@ -133,7 +136,6 @@ class WorkflowProcessor:
             return self._execute_gemini(full_system_prompt, user_input, model_name, settings.get("temp"), json_mode)
 
         try:
-            # Langfuse Context Manager
             langfuse = Langfuse()
             
             with langfuse.start_as_current_generation(

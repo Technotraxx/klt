@@ -7,6 +7,7 @@ import json
 from config import Config
 from workflow import WorkflowProcessor
 from prompt_discovery import PromptDiscovery
+from models import AVAILABLE_MODELS
 
 # Page Config
 st.set_page_config(
@@ -210,8 +211,7 @@ with st.sidebar:
     st.divider()
     
     st.subheader("🤖 Modell Settings")
-    available_models = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"]
-    model_choice = st.selectbox("Modell", available_models, index=0)
+    model_choice = st.selectbox("Modell", AVAILABLE_MODELS, index=0)
     temp_val = st.slider("Kreativität (Temp)", 0.0, 1.0, 0.2, 0.1)
     model_settings = {"model": model_choice, "temp": temp_val}
     

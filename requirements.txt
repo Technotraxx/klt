@@ -1,6 +1,6 @@
 streamlit
 google-genai
-langfuse>=2.30.0
+langfuse>=2.50.0
 pymupdf
 python-docx
 requests

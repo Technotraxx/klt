@@ -1,75 +1,60 @@
 """
-Dokumenten-Parser Modul für Streamlit
-Verarbeitet UploadedFile Objekte (Streams)
+Dokumenten-Parser Modul
+Angepasst für Streamlit UploadedFile Objekte
 """
 
 import fitz  # PyMuPDF
 import docx
 
 class DocumentParser:
-    """Parser für Streamlit Uploads"""
     
     @staticmethod
     def parse_pdf(file_stream):
-        """Liest PDF aus Memory Stream"""
         text = ""
         try:
-            # fitz.open kann direkt mit Bytes arbeiten
             with fitz.open(stream=file_stream.read(), filetype="pdf") as doc:
                 for page in doc:
                     text += page.get_text() + "\n"
         except Exception as e:
-            text = f"[Fehler beim Lesen der PDF: {e}]"
+            text = f"[Fehler PDF: {e}]"
         return text
     
     @staticmethod
     def parse_docx(file_stream):
-        """Liest DOCX aus Memory Stream"""
         text = ""
         try:
             doc = docx.Document(file_stream)
             for para in doc.paragraphs:
                 text += para.text + "\n"
         except Exception as e:
-            text = f"[Fehler beim Lesen der DOCX: {e}]"
+            text = f"[Fehler DOCX: {e}]"
         return text
     
     @staticmethod
     def parse_text_file(file_stream):
-        """Liest Textdatei aus Memory Stream"""
         try:
             return file_stream.getvalue().decode("utf-8")
         except Exception as e:
-            return f"[Fehler beim Lesen der Datei: {e}]"
+            return f"[Fehler TXT: {e}]"
     
     @classmethod
     def parse_uploaded_files(cls, uploaded_files):
-        """
-        Router für Streamlit UploadedFile Objekte
-        
-        Args:
-            uploaded_files: Liste von Streamlit UploadedFile Objekten
-            
-        Returns:
-            str: Kombinierter Inhalt
-        """
+        """Erwartet Streamlit UploadedFile Liste"""
         combined_content = ""
         if not uploaded_files:
             return ""
         
-        for uploaded_file in uploaded_files:
-            filename = uploaded_file.name
+        for file_obj in uploaded_files:
+            filename = file_obj.name
+            file_obj.seek(0) # Reset pointer
+            
             content = ""
-            
-            # Cursor auf Anfang setzen (wichtig bei Streamlit)
-            uploaded_file.seek(0)
-            
             if filename.lower().endswith('.pdf'):
-                content = cls.parse_pdf(uploaded_file)
+                content = cls.parse_pdf(file_obj)
             elif filename.lower().endswith('.docx'):
-                content = cls.parse_docx(uploaded_file)
+                content = cls.parse_docx(file_obj)
             else:
-                content = cls.parse_text_file(uploaded_file)
+                content = cls.parse_text_file(file_obj)
             
             combined_content += f"\n--- ANHANG: {filename} ---\n{content}\n"
         

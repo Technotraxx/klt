@@ -76,247 +76,181 @@ Kategorisierte Entitäten mit Kontext:
 ```json
 {
   "metadata": {
-    "eingang": "2024-03-08T14:30:00+01:00",
+    "eingang": "[String: ISO 8601 Zeitstempel des Eingangs, Format YYYY-MM-DDTHH:MM:SS+Zeitzone]",
     "absender": {
-      "name": "Max Mustermann",
-      "organisation": "Beispiel GmbH",
-      "email": "presse@beispiel.de"
+      "name": "[String: Vollständiger Name des Absenders]",
+      "organisation": "[String: Zugehörige Organisation oder Firma]",
+      "email": "[String: E-Mail-Adresse des Absenders]"
     },
-    "betreff": "Pressemitteilung: Eröffnung Technologiezentrum",
-    "typ": "Pressemitteilung",
-    "anhänge": ["PM_Tech_Zentrum.pdf", "Foto_Aussenansicht.jpg"]
+    "betreff": "[String: Originaler Betreff der E-Mail/Nachricht]",
+    "typ": "[String: Art der Nachricht, z.B. 'Pressemitteilung' | 'Leserbrief' | 'Hinweis' | 'Einladung']",
+    "anhänge": ["[Array of Strings: Liste der Dateinamen aller Anhänge]"]
   },
 
   "nachrichtenkern": {
     "wer": {
-      "hauptakteur": "Beispiel GmbH",
-      "weitere": ["Stadt Hannover", "IHK Hannover"],
-      "reasoning": "Absender und Partner explizit in PM genannt",
-      "confidence": 2
+      "hauptakteur": "[String: Zentrale Person oder Organisation der Nachricht]",
+      "weitere": ["[Array of Strings: Weitere beteiligte Akteure]"],
+      "reasoning": "[String: Begründung der Zuordnung]",
+      "confidence": "[Integer 1-3: Konfidenz, 1=unsicher, 2=sicher, 3=sehr sicher]"
     },
     "was": {
-      "ereignis": "Eröffnung Technologiezentrum",
-      "details": "5000qm Fläche für Start-ups",
-      "reasoning": "Hauptthema klar in Betreff und erstem Absatz",
-      "confidence": 2
+      "ereignis": "[String: Kurzbeschreibung des Hauptereignisses]",
+      "details": "[String: Ergänzende Details zum Ereignis]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     },
     "wann": {
-      "datum": "2024-03-15",
-      "wochentag": "Freitag",
-      "uhrzeit": "11:00",
-      "reasoning": "Vollständige Zeitangabe in Absatz 2",
-      "confidence": 2
+      "datum": "[String: Datum im Format YYYY-MM-DD]",
+      "wochentag": "[String: Ausgeschriebener Wochentag]",
+      "uhrzeit": "[String: Uhrzeit im Format HH:MM, falls vorhanden]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     },
     "wo": {
-      "ort": "Technologiepark Hannover",
-      "adresse": "Beispielstraße 123",
-      "plz": "30159",
-      "stadt": "Hannover",
-      "reasoning": "Komplette Adresse im Infoteil",
-      "confidence": 2
+      "ort": "[String: Ortsbezeichnung oder Veranstaltungsort]",
+      "adresse": "[String: Straße und Hausnummer]",
+      "plz": "[String: Postleitzahl]",
+      "stadt": "[String: Stadtname]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     },
     "warum": {
-      "anlass": "Förderung der Start-up-Szene",
-      "reasoning": "Motivation in Zitat des Geschäftsführers",
-      "confidence": 1
+      "anlass": "[String: Grund oder Motivation des Ereignisses]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     }
   },
 
   "entities": {
     "personen": [
       {
-        "name": "Dr. Thomas Weber",
-        "funktion": "Geschäftsführer",
-        "organisation": "Beispiel GmbH",
-        "reasoning": "Name und Funktion unter Zitat",
-        "confidence": 2
-      },
-      {
-        "name": "Belit Onay",
-        "funktion": "Oberbürgermeister",
-        "organisation": "Stadt Hannover",
-        "reasoning": "Zitatgeber mit Funktion",
-        "confidence": 2
+        "name": "[String: Vollständiger Name inkl. Titel]",
+        "funktion": "[String: Berufliche Funktion oder Rolle]",
+        "organisation": "[String: Zugehörige Organisation]",
+        "reasoning": "[String: Begründung der Extraktion]",
+        "confidence": "[Integer 1-3]"
       }
     ],
     "organisationen": [
       {
-        "name": "Beispiel GmbH",
-        "typ": "Unternehmen",
-        "branche": "Technologie",
-        "reasoning": "Absender der PM",
-        "confidence": 2
-      },
-      {
-        "name": "IHK Hannover",
-        "typ": "Kammer",
-        "reasoning": "Als Partner erwähnt",
-        "confidence": 1
+        "name": "[String: Offizieller Name der Organisation]",
+        "typ": "[String: Art der Organisation, z.B. 'Unternehmen' | 'Behörde' | 'Verein' | 'Kammer']",
+        "branche": "[String | null: Branchenzuordnung, falls relevant]",
+        "reasoning": "[String: Begründung]",
+        "confidence": "[Integer 1-3]"
       }
     ],
     "orte": [
       {
-        "name": "Hannover",
-        "typ": "Stadt",
-        "bundesland": "Niedersachsen",
-        "reasoning": "Mehrfach genannt",
-        "confidence": 2
+        "name": "[String: Ortsname]",
+        "typ": "[String: Ortstyp, z.B. 'Stadt' | 'Stadtteil' | 'Landkreis' | 'Gebäude']",
+        "bundesland": "[String | null: Bundesland, falls relevant]",
+        "reasoning": "[String: Begründung]",
+        "confidence": "[Integer 1-3]"
       }
     ],
     "zeitangaben": [
       {
-        "datum": "2024-03-15",
-        "beschreibung": "Eröffnungstermin",
-        "reasoning": "Explizit als Eröffnungsdatum",
-        "confidence": 2
-      },
-      {
-        "datum": "2024-03-16",
-        "beschreibung": "Tag der offenen Tür",
-        "reasoning": "Folgeveranstaltung erwähnt",
-        "confidence": 1
+        "datum": "[String: Datum im Format YYYY-MM-DD]",
+        "beschreibung": "[String: Kontextuelle Beschreibung des Datums]",
+        "reasoning": "[String: Begründung]",
+        "confidence": "[Integer 1-3]"
       }
     ],
     "zahlen": [
       {
-        "wert": 12000000,
-        "einheit": "EUR",
-        "kontext": "Investitionsvolumen",
-        "reasoning": "Konkrete Summe in Absatz 2",
-        "confidence": 2
-      },
-      {
-        "wert": 5000,
-        "einheit": "qm",
-        "kontext": "Fläche Technologiezentrum",
-        "reasoning": "Größenangabe explizit",
-        "confidence": 2
-      },
-      {
-        "wert": 50,
-        "einheit": "Arbeitsplätze",
-        "kontext": "Geplante neue Stellen",
-        "reasoning": "Prognose im Text",
-        "confidence": 1
+        "wert": "[Number: Numerischer Wert als Zahl]",
+        "einheit": "[String: Einheit oder Maßeinheit, z.B. 'EUR' | 'qm' | 'Personen']",
+        "kontext": "[String: Kontextuelle Einordnung der Zahl]",
+        "reasoning": "[String: Begründung]",
+        "confidence": "[Integer 1-3]"
       }
     ]
   },
 
   "zitate": [
     {
-      "text": "Dies ist ein Meilenstein für den Innovationsstandort Hannover",
-      "sprecher": "Belit Onay",
-      "funktion": "Oberbürgermeister Hannover",
-      "fundstelle": "PM_Tech_Zentrum.pdf, Seite 2",
-      "kontext": "Statement zur Eröffnung",
-      "reasoning": "Wörtliches Zitat in Anführungszeichen",
-      "confidence": 2
-    },
-    {
-      "text": "Wir schaffen hier optimale Bedingungen für junge Unternehmen",
-      "sprecher": "Dr. Thomas Weber",
-      "funktion": "Geschäftsführer Beispiel GmbH",
-      "fundstelle": "Email-Body, Absatz 3",
-      "kontext": "Zielsetzung des Zentrums",
-      "reasoning": "Direktes Zitat mit Zuordnung",
-      "confidence": 2
+      "text": "[String: Wörtliches Zitat ohne Anführungszeichen]",
+      "sprecher": "[String: Name des Zitatgebers]",
+      "funktion": "[String: Funktion und Organisation des Sprechers]",
+      "fundstelle": "[String: Quellenangabe innerhalb des Dokuments]",
+      "kontext": "[String: Thematischer Kontext des Zitats]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     }
   ],
 
   "quellen": [
     {
-      "titel": "Digitalisierungsstrategie Hannover 2030",
-      "typ": "Strategiepapier",
-      "erwähnt_in": "PM_Tech_Zentrum.pdf, Seite 3",
-      "reasoning": "Referenz als Grundlage genannt",
-      "confidence": 1
-    },
-    {
-      "titel": "IHK-Studie Gründerszene 2024",
-      "typ": "Studie",
-      "identifier": "www.ihk-hannover.de/studie-2024",
-      "erwähnt_in": "Anhang, Fußnote 2",
-      "reasoning": "URL als Quelle angegeben",
-      "confidence": 2
+      "titel": "[String: Titel des referenzierten Dokuments]",
+      "typ": "[String: Art der Quelle, z.B. 'Studie' | 'Strategiepapier' | 'Gesetz' | 'Bericht']",
+      "identifier": "[String | null: URL, DOI oder andere Kennung, falls vorhanden]",
+      "erwähnt_in": "[String: Fundstelle der Quellenerwähnung]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     }
   ],
 
   "fakten": [
     {
-      "fakt": "Investitionsvolumen beträgt 12 Millionen Euro",
-      "kategorie": "Finanzen",
-      "fundstelle": "PM Seite 1, Absatz 2",
-      "reasoning": "Explizite Zahlenangabe",
-      "confidence": 2
-    },
-    {
-      "fakt": "Eröffnung am 15. März 2024 um 11:00 Uhr",
-      "kategorie": "Termin",
-      "fundstelle": "Email-Body und PM",
-      "reasoning": "Mehrfach bestätigter Termin",
-      "confidence": 2
-    },
-    {
-      "fakt": "50 neue Arbeitsplätze bis Ende 2025",
-      "kategorie": "Arbeitsmarkt",
-      "fundstelle": "Zitat Geschäftsführer",
-      "reasoning": "Unternehmensangabe/Prognose",
-      "confidence": 1
+      "fakt": "[String: Einzelner, überprüfbarer Fakt als vollständiger Satz]",
+      "kategorie": "[String: Thematische Kategorie, z.B. 'Finanzen' | 'Termin' | 'Arbeitsmarkt' | 'Statistik']",
+      "fundstelle": "[String: Quellenangabe innerhalb des Dokuments]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     }
   ],
 
   "kontakte": [
     {
-      "name": "Maria Schmidt",
-      "funktion": "Pressesprecherin",
-      "organisation": "Beispiel GmbH",
-      "telefon": "+49 511 98765-43",
-      "email": "schmidt@beispiel.de",
-      "erreichbarkeit": "Mo-Fr 9-17 Uhr",
-      "reasoning": "Pressekontakt explizit angegeben",
-      "confidence": 2
+      "name": "[String: Vollständiger Name der Kontaktperson]",
+      "funktion": "[String: Berufliche Funktion]",
+      "organisation": "[String: Zugehörige Organisation]",
+      "telefon": "[String | null: Telefonnummer im internationalen Format]",
+      "email": "[String | null: E-Mail-Adresse]",
+      "erreichbarkeit": "[String | null: Erreichbarkeitszeiten, falls angegeben]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     }
   ],
 
   "medien": [
     {
-      "dateiname": "Foto_Aussenansicht.jpg",
-      "typ": "Bild",
-      "beschreibung": "Außenansicht des neuen Technologiezentrums",
-      "rechteinhaber": "Beispiel GmbH",
-      "fotograf": "Jan Müller",
-      "verwendung": "Abdruck frei bei Quellenangabe",
-      "reasoning": "Bildinfo in Email-Body",
-      "confidence": 2
+      "dateiname": "[String: Name der Mediendatei]",
+      "typ": "[String: Medientyp, z.B. 'Bild' | 'Video' | 'Audio' | 'Dokument']",
+      "beschreibung": "[String: Inhaltliche Beschreibung des Mediums]",
+      "rechteinhaber": "[String | null: Inhaber der Nutzungsrechte]",
+      "fotograf": "[String | null: Name des Urhebers/Fotografen]",
+      "verwendung": "[String | null: Nutzungsbedingungen oder Lizenzhinweis]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     }
   ],
 
   "regional": {
-    "stadt": "Hannover",
-    "landkreis": "Region Hannover",
-    "bundesland": "Niedersachsen",
-    "lokalredaktion": "HAZ/NP Stadtredaktion",
-    "reasoning": "Ortsangaben eindeutig Hannover",
-    "confidence": 2
+    "stadt": "[String | null: Betroffene Stadt]",
+    "landkreis": "[String | null: Betroffener Landkreis oder Region]",
+    "bundesland": "[String | null: Betroffenes Bundesland]",
+    "lokalredaktion": "[String | null: Zuständige Redaktion basierend auf Regionalbezug]",
+    "reasoning": "[String: Begründung der regionalen Zuordnung]",
+    "confidence": "[Integer 1-3]"
   },
 
   "sperrfristen": {
-    "embargo": null,
-    "sperrfrist_bis": null,
-    "reasoning": "Keine Sperrfrist erwähnt",
-    "confidence": 2
+    "embargo": "[String | null: Embargo-Hinweis, falls vorhanden]",
+    "sperrfrist_bis": "[String | null: Datum/Uhrzeit der Sperrfrist im ISO 8601 Format]",
+    "reasoning": "[String: Begründung]",
+    "confidence": "[Integer 1-3]"
   },
 
   "extraction_quality": {
-    "total_items": 42,
-    "high_confidence_items": 35,
-    "medium_confidence_items": 7,
-    "low_confidence_items": 0,
-    "avg_confidence": 1.7,
-    "warnungen": [
-      "PDF Seite 4 teilweise unleserlich",
-      "Email-Datum weicht von PM-Datum ab"
-    ]
+    "total_items": "[Integer: Gesamtzahl aller extrahierten Elemente]",
+    "high_confidence_items": "[Integer: Anzahl Elemente mit Konfidenz 2-3]",
+    "medium_confidence_items": "[Integer: Anzahl Elemente mit Konfidenz 1]",
+    "low_confidence_items": "[Integer: Anzahl Elemente mit Konfidenz 0 oder unvollständig]",
+    "avg_confidence": "[Float: Durchschnittliche Konfidenz aller Elemente]",
+    "warnungen": ["[Array of Strings: Hinweise auf Qualitätsprobleme, Inkonsistenzen oder fehlende Daten]"]
   }
 }
 ```

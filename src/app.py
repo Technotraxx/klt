@@ -231,6 +231,9 @@ if start_btn:
         status_container.update(label="❌ Fehler", state="error")
         st.error(f"Fehler: {str(e)}")
 
+    finally:
+        processor.flush_stats()
+
 elif st.session_state.workflow_data:
     # Persistente Anzeige
     d = st.session_state.workflow_data

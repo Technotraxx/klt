@@ -272,54 +272,43 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 if start_btn:
-    # Reset workflow data
+    # Reset
     st.session_state.workflow_data = {}
     processor.logger.clear()
     status_container.update(label="🚀 Workflow läuft...", state="running", expanded=True)
     
+    # Callback Funktion für Streamlit UI Updates
+    def update_status(msg):
+        status_container.write(msg)
+
     try:
-        # Prompt Configs
-        c1 = {"name": parse_selection(p1_sel)[0], "source": parse_selection(p1_sel)[1], "version": p1_ver}
-        c2 = {"name": parse_selection(p2_sel)[0], "source": parse_selection(p2_sel)[1], "version": p2_ver}
-        c3 = {"name": parse_selection(p3_sel)[0], "source": parse_selection(p3_sel)[1], "version": p3_ver}
-        c4 = {"name": parse_selection(p4_sel)[0], "source": parse_selection(p4_sel)[1], "version": p4_ver}
+        # Prompt Configs sammeln
+        configs = {
+            "extract": {"name": parse_selection(p1_sel)[0], "source": parse_selection(p1_sel)[1], "version": p1_ver},
+            "draft":   {"name": parse_selection(p2_sel)[0], "source": parse_selection(p2_sel)[1], "version": p2_ver},
+            "write":   {"name": parse_selection(p3_sel)[0], "source": parse_selection(p3_sel)[1], "version": p3_ver},
+            "check":   {"name": parse_selection(p4_sel)[0], "source": parse_selection(p4_sel)[1], "version": p4_ver}
+        }
         
-        # 0. Parse Input
-        status_container.write("📎 Parse Dokumente...")
-        file_content = processor.step_parsing(uploaded_files)
-        full_raw_input = f"META: {meta_input}\nTEXT: {text_input}\nFILES: {file_content}"
-        st.session_state.workflow_data["raw"] = full_raw_input
+        # --- DER NEUE CALL ---
+        # Ruft ALLES in einem Trace auf
+        results = processor.run_workflow(
+            uploaded_files=uploaded_files, 
+            meta_input=meta_input, 
+            text_input=text_input, 
+            prompt_configs=configs, 
+            model_settings=model_settings,
+            status_callback=update_status # <--- UI Updates
+        )
         
-        # 1. Extract
-        status_container.write(f"🤖 Extraktion mit {c1['name']}...")
-        json_data = processor.step_extraction(c1, full_raw_input, model_settings)
-        st.session_state.workflow_data["json"] = json_data
+        # Ergebnisse in Session State speichern
+        st.session_state.workflow_data = results
         
-        # 2. Draft (Concept)
-        status_container.write(f"💡 Konzept mit {c2['name']}...")
-        concept_json = processor.step_draft_concept(c2, json_data, model_settings)
-        st.session_state.workflow_data["concept"] = concept_json
-        
-        # 3. Write (Article)
-        status_container.write(f"✍️ Artikel schreiben mit {c3['name']}...")
-        article_data = processor.step_write_article(c3, json_data, concept_json, model_settings)
-        st.session_state.workflow_data["article"] = article_data
-
-        # 4. Check (Hier müssen wir evtl. den Article in String wandeln für den Check-Input)
-        status_container.write(f"🔍 Check mit {c4['name']}...")
-        
-        # Article kann JSON oder String sein, Check braucht String
-        article_text_for_check = json.dumps(article_data, ensure_ascii=False) if isinstance(article_data, dict) else str(article_data)
-        
-        check_text = processor.step_check(c4, article_text_for_check, json_data, full_raw_input, model_settings)
-        st.session_state.workflow_data["check"] = check_text
-
         status_container.update(label="✅ Fertig!", state="complete", expanded=False)
 
     except Exception as e:
         status_container.update(label="❌ Fehler", state="error")
         st.error(f"Fehler im Ablauf: {str(e)}")
-        # Debugging: Stacktrace anzeigen
         import traceback
         st.code(traceback.format_exc())
 

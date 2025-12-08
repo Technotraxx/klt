@@ -12,7 +12,7 @@ class Config:
         self.BASE_DIR = Path(__file__).parent.parent
         self.PROMPT_DIR = self.BASE_DIR / "prompts"
         self.PROMPT_DIR.mkdir(exist_ok=True)
-        self.DEFAULT_MODEL = 'gemini-1.5-flash'
+        self.DEFAULT_MODEL = 'gemini-flash-latest'
         
         # API Keys
         self.api_key = self._get_secret("GEMINI_API_KEY") or self._get_secret("GOOGLE_API_KEY")

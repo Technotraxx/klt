@@ -70,8 +70,7 @@ def get_core_components():
 
 config, processor, discovery = get_core_components()
 
-# --- WICHTIG: Session State Initialisierung ---
-# Dies muss VOR jeglicher Verwendung von st.session_state.workflow_data stehen!
+# --- Session State ---
 if "workflow_data" not in st.session_state:
     st.session_state.workflow_data = {}
 
@@ -103,13 +102,10 @@ def render_json_html(data):
 
 def render_article_dashboard(article_json):
     """Zeigt Online und Print Version nebeneinander an"""
-    
-    # Safely get nested dicts
     online = article_json.get("online", {})
     print_ver = article_json.get("print", {})
     meta = article_json.get("confidence", {})
     
-    # Top Metriken
     with st.container(border=True):
         c1, c2, c3 = st.columns(3)
         c1.metric("Fakten-Check", f"{meta.get('fakten_vollstaendig', '?')}/3")
@@ -118,13 +114,10 @@ def render_article_dashboard(article_json):
 
     col_online, col_print = st.columns(2)
     
-    # --- ONLINE SPALTE ---
     with col_online:
         st.subheader("🌐 Online")
         with st.container():
             st.markdown('<div class="online-card">', unsafe_allow_html=True)
-            
-            # SEO Box
             if "meta_description" in online:
                 st.markdown(f"""
                 <div class="meta-box">
@@ -133,21 +126,16 @@ def render_article_dashboard(article_json):
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Content
             st.markdown(f"## {online.get('ueberschrift', 'Keine Überschrift')}")
             st.markdown(f"**{online.get('teaser', '')}**")
             st.markdown("---")
-            # Body rendern
             st.markdown(online.get('body', ''))
-            
             st.caption(f"📏 Zeichen (Body): {online.get('zeichen_body', 0)}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- PRINT SPALTE ---
     with col_print:
         st.subheader("📰 Print")
         with st.container():
-            # Print Styling Simulation
             st.markdown(f"""
             <div class="print-font">
                 <h4 style="margin-bottom:5px; color:#666; text-transform:uppercase; font-size:0.8em;">{print_ver.get('unterzeile', '')}</h4>
@@ -156,10 +144,8 @@ def render_article_dashboard(article_json):
                 <p style="text-align: justify; line-height: 1.4;">{str(print_ver.get('text', '')).replace(chr(10), '<br>')}</p>
             </div>
             """, unsafe_allow_html=True)
-             
             st.caption(f"📏 Zeichen (Text): {print_ver.get('zeichen_text', 0)}")
             
-    # --- FOOTER BEREICH ---
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
@@ -211,6 +197,7 @@ with st.sidebar:
     st.divider()
     
     st.subheader("🤖 Modell Settings")
+    # Liste aus models.py
     model_choice = st.selectbox("Modell", AVAILABLE_MODELS, index=0)
     temp_val = st.slider("Kreativität (Temp)", 0.0, 1.0, 0.2, 0.1)
     model_settings = {"model": model_choice, "temp": temp_val}
@@ -225,22 +212,19 @@ with st.sidebar:
     opts_write = [f"{p['display_name']} ({p['source']})" for p in available["write"]]
     opts_check = [f"{p['display_name']} ({p['source']})" for p in available["control"]]
     
-    # 1. Extraction
+    # Selectboxes
     idx_e = get_index_for_default(opts_extract, "extract")
     p1_sel = st.selectbox("1. Daten-Extraktion", opts_extract, index=idx_e)
     p1_ver = st.selectbox("Version", get_versions(p1_sel), key="v1")
     
-    # 2. Draft (Concept)
     idx_d = get_index_for_default(opts_draft, ["draft", "concept"])
     p2_sel = st.selectbox("2. Konzept/Planung", opts_draft, index=idx_d)
     p2_ver = st.selectbox("Version", get_versions(p2_sel), key="v2")
 
-    # 3. Write (Article)
     idx_w = get_index_for_default(opts_write, ["write", "artikel", "article"])
     p3_sel = st.selectbox("3. Artikel Schreiben", opts_write, index=idx_w)
     p3_ver = st.selectbox("Version", get_versions(p3_sel), key="v3")
     
-    # 4. Check
     idx_c = get_index_for_default(opts_check, ["check", "control"])
     p4_sel = st.selectbox("4. Fakten-Check", opts_check, index=idx_c)
     p4_ver = st.selectbox("Version", get_versions(p4_sel), key="v4")
@@ -253,8 +237,11 @@ st.title("📰 AI Editorial Assistant")
 
 col1, col2 = st.columns([1, 1])
 with col1:
-    meta_input = st.text_area("Metadaten", height=100, placeholder="Absender, Datum...")
-    text_input = st.text_area("Nachrichtentext", height=300, placeholder="Inhalt...")
+    # URL Input (NEU)
+    url_input = st.text_input("Presseportal URL (Optional)", placeholder="https://www.presseportal.de/blaulicht/...")
+    
+    meta_input = st.text_area("Metadaten (Zusätzlich)", height=100, placeholder="Absender, Datum (falls manuell)...")
+    text_input = st.text_area("Nachrichtentext (Zusätzlich)", height=300, placeholder="Inhalt...")
 with col2:
     uploaded_files = st.file_uploader("Anhänge", type=["pdf", "docx", "txt"], accept_multiple_files=True)
     st.info(f"Modell: {model_choice} | Datum: {processor.get_date_string()}")
@@ -263,7 +250,6 @@ with col2:
 st.divider()
 status_container = st.status("Bereit...", expanded=False)
 
-# 4 Tabs für die 4 Phasen
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 1. Daten (JSON)", 
     "💡 2. Konzept (Tabelle)", 
@@ -272,17 +258,14 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 if start_btn:
-    # Reset
     st.session_state.workflow_data = {}
     processor.logger.clear()
     status_container.update(label="🚀 Workflow läuft...", state="running", expanded=True)
     
-    # Callback Funktion für Streamlit UI Updates
     def update_status(msg):
         status_container.write(msg)
 
     try:
-        # Prompt Configs sammeln
         configs = {
             "extract": {"name": parse_selection(p1_sel)[0], "source": parse_selection(p1_sel)[1], "version": p1_ver},
             "draft":   {"name": parse_selection(p2_sel)[0], "source": parse_selection(p2_sel)[1], "version": p2_ver},
@@ -290,20 +273,18 @@ if start_btn:
             "check":   {"name": parse_selection(p4_sel)[0], "source": parse_selection(p4_sel)[1], "version": p4_ver}
         }
         
-        # --- DER NEUE CALL ---
-        # Ruft ALLES in einem Trace auf
+        # Aufruf des neuen Master-Workflows
         results = processor.run_workflow(
             uploaded_files=uploaded_files, 
             meta_input=meta_input, 
-            text_input=text_input, 
+            text_input=text_input,
+            url_input=url_input,   # <--- URL übergeben
             prompt_configs=configs, 
             model_settings=model_settings,
-            status_callback=update_status # <--- UI Updates
+            status_callback=update_status
         )
         
-        # Ergebnisse in Session State speichern
         st.session_state.workflow_data = results
-        
         status_container.update(label="✅ Fertig!", state="complete", expanded=False)
 
     except Exception as e:
@@ -316,16 +297,13 @@ if start_btn:
         processor.flush_stats()
 
 # --- OUTPUT VIEW ---
-# Hier greifen wir sicher auf session_state zu
 if "workflow_data" in st.session_state and st.session_state.workflow_data:
     d = st.session_state.workflow_data
     
-    # 1. Daten
     with tab1:
         if "json" in d: st.json(d["json"], expanded=True)
         else: st.info("Warte auf Daten...")
 
-    # 2. Konzept
     with tab2:
         if "concept" in d:
             c_json = try_parse_json(d["concept"])
@@ -333,34 +311,26 @@ if "workflow_data" in st.session_state and st.session_state.workflow_data:
             else: st.markdown(d["concept"])
         else: st.info("Warte auf Konzept...")
 
-    # 3. Artikel (NEU - Dashboard)
     with tab3:
         if "article" in d:
-            # Versuchen zu parsen
             a_data = d["article"]
             if isinstance(a_data, str):
                 a_data = try_parse_json(a_data)
             
             if isinstance(a_data, dict):
-                # 1. Dashboard Visualisierung
                 render_article_dashboard(a_data)
-                
-                # 2. Expander für Raw Data
                 st.divider()
                 with st.expander("🔍 Rohes JSON ansehen"):
                     st.json(a_data)
             else:
-                # Fallback
-                st.warning("⚠️ Konnte Artikel-Format nicht parsen (kein JSON). Zeige Text:")
+                st.warning("⚠️ Text-Format (kein JSON):")
                 st.markdown(d["article"])
         else: st.info("Warte auf Artikel...")
 
-    # 4. Check
     with tab4:
         if "check" in d: st.markdown(d["check"])
         else: st.info("Warte auf Check...")
 
-    # --- DOWNLOADS ---
     st.divider()
     with st.expander("💾 Ergebnisse herunterladen", expanded=True):
         c1, c2, c3, c4 = st.columns(4)
@@ -374,7 +344,6 @@ if "workflow_data" in st.session_state and st.session_state.workflow_data:
             c2.download_button("📥 2. Konzept (JSON)", c_content, "concept.json", "application/json")
             
         if "article" in d:
-            # Download als JSON
             a_content = d["article"]
             if isinstance(a_content, dict): a_content = json.dumps(a_content, indent=2, ensure_ascii=False)
             c3.download_button("📥 3. Artikel (JSON)", a_content, "article.json", "application/json")

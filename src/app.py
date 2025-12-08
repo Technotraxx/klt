@@ -31,27 +31,31 @@ st.markdown("""
     .sub-header { background-color: #31333F; color: white; font-weight: bold; padding: 8px; text-align: center; }
 
     /* Article Preview Cards */
-    .preview-card {
-        border: 1px solid #ddd;
-        border-radius: 8px;
+    .meta-box {
+        background-color: #eef2f6;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 0.9em;
+        margin-bottom: 20px;
+        border-left: 4px solid #ff4b4b;
+        color: #444;
+    }
+    
+    .print-font { 
+        font-family: "Georgia", "Times New Roman", serif; 
         padding: 20px;
         background-color: white;
-        height: 100%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .online-header { border-top: 5px solid #ff4b4b; }
-    .print-header { border-top: 5px solid #333; }
-    
-    .meta-box {
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 5px;
-        font-size: 0.85em;
-        margin-bottom: 15px;
-        border-left: 3px solid #ff4b4b;
+        border: 1px solid #eee;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
     }
     
-    .print-font { font-family: "Times New Roman", Times, serif; }
+    .online-card {
+        padding: 20px;
+        background-color: white;
+        border: 1px solid #eee;
+        border-top: 4px solid #4285F4;
+        border-radius: 4px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,6 +69,11 @@ def get_core_components():
 
 config, processor, discovery = get_core_components()
 
+# --- WICHTIG: Session State Initialisierung ---
+# Dies muss VOR jeglicher Verwendung von st.session_state.workflow_data stehen!
+if "workflow_data" not in st.session_state:
+    st.session_state.workflow_data = {}
+
 # --- Helper Functions ---
 def try_parse_json(content):
     if isinstance(content, dict): return content
@@ -74,7 +83,6 @@ def try_parse_json(content):
     except: return None
 
 def render_json_html(data):
-    # ... (Funktion wie zuvor, für Draft Tabelle)
     if not isinstance(data, dict): return f"<div>{data}</div>"
     html = '<table class="json-table"><thead><tr><th>Feld</th><th>Inhalt</th></tr></thead><tbody>'
     for key, value in data.items():
@@ -92,97 +100,235 @@ def render_json_html(data):
     html += '</tbody></table>'
     return html
 
-# --- NEU: Visualisierung für Artikel Output ---
 def render_article_dashboard(article_json):
     """Zeigt Online und Print Version nebeneinander an"""
     
-    # Sicherstellen, dass die Keys existieren (Fehlertoleranz)
+    # Safely get nested dicts
     online = article_json.get("online", {})
     print_ver = article_json.get("print", {})
     meta = article_json.get("confidence", {})
     
-    # Metriken oben
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Fakten-Check", f"{meta.get('fakten_vollstaendig', '?')}/3")
-    m2.metric("Stil-Score", f"{meta.get('stil_konform', '?')}/3")
-    m3.metric("Länge", f"{meta.get('laenge_eingehalten', '?')}/3")
-    
-    st.divider()
+    # Top Metriken
+    with st.container(border=True):
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Fakten-Check", f"{meta.get('fakten_vollstaendig', '?')}/3")
+        c2.metric("Stil-Score", f"{meta.get('stil_konform', '?')}/3")
+        c3.metric("Länge", f"{meta.get('laenge_eingehalten', '?')}/3")
 
     col_online, col_print = st.columns(2)
     
     # --- ONLINE SPALTE ---
     with col_online:
-        st.markdown("### 🌐 Online Version")
-        with st.container(border=True):
-            # Meta Description
+        st.subheader("🌐 Online")
+        with st.container():
+            st.markdown('<div class="online-card">', unsafe_allow_html=True)
+            
+            # SEO Box
             if "meta_description" in online:
                 st.markdown(f"""
                 <div class="meta-box">
-                    <strong>SEO Description ({len(online.get('meta_description',''))} Zeichen):</strong><br>
+                    <strong>🔍 SEO Description ({len(str(online.get('meta_description','')))} Zeichen):</strong><br>
                     {online.get('meta_description')}
                 </div>
                 """, unsafe_allow_html=True)
             
             # Content
-            st.markdown(f"# {online.get('ueberschrift', '')}")
-            st.markdown(f"*{online.get('teaser', '')}*")
+            st.markdown(f"## {online.get('ueberschrift', 'Keine Überschrift')}")
+            st.markdown(f"**{online.get('teaser', '')}**")
             st.markdown("---")
+            # Body rendern
             st.markdown(online.get('body', ''))
             
-            st.caption(f"Zeichen (Body): {online.get('zeichen_body', 0)}")
+            st.caption(f"📏 Zeichen (Body): {online.get('zeichen_body', 0)}")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # --- PRINT SPALTE ---
     with col_print:
-        st.markdown("### 📰 Print Version")
-        with st.container(border=True):
+        st.subheader("📰 Print")
+        with st.container():
             # Print Styling Simulation
             st.markdown(f"""
             <div class="print-font">
-                <h4 style="margin-bottom:0; color:#555;">{print_ver.get('unterzeile', '')}</h4>
-                <h2 style="margin-top:0; font-size: 2em;">{print_ver.get('ueberschrift', '')}</h2>
-                <hr style="border-top: 2px solid black;">
-                <p style="text-align: justify;">{print_ver.get('text', '').replace(chr(10), '<br>')}</p>
+                <h4 style="margin-bottom:5px; color:#666; text-transform:uppercase; font-size:0.8em;">{print_ver.get('unterzeile', '')}</h4>
+                <h2 style="margin-top:0; font-size: 1.8em; line-height:1.1;">{print_ver.get('ueberschrift', '')}</h2>
+                <hr style="border-top: 2px solid black; margin: 15px 0;">
+                <p style="text-align: justify; line-height: 1.4;">{str(print_ver.get('text', '')).replace(chr(10), '<br>')}</p>
             </div>
             """, unsafe_allow_html=True)
              
-            st.caption(f"Zeichen (Text): {print_ver.get('zeichen_text', 0)}")
+            st.caption(f"📏 Zeichen (Text): {print_ver.get('zeichen_text', 0)}")
             
     # --- FOOTER BEREICH ---
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("**💬 Verwendete Zitate**")
-        for q in article_json.get("verwendete_zitate", []):
-            st.info(f"„{q.get('text')}“\n\n— *{q.get('sprecher')} ({q.get('funktion')})*")
+        st.markdown("#### 💬 Zitate")
+        zitate = article_json.get("verwendete_zitate", [])
+        if zitate:
+            for q in zitate:
+                st.info(f"„{q.get('text')}“\n\n— *{q.get('sprecher')} ({q.get('funktion')})*")
+        else:
+            st.caption("Keine Zitate verwendet.")
             
     with c2:
-        st.markdown("**🛠 Abweichungen vom Entwurf**")
-        for diff in article_json.get("abweichungen_von_draft", []):
-            st.warning(f"• {diff}")
+        st.markdown("#### 🛠 KI-Anpassungen")
+        diffs = article_json.get("abweichungen_von_draft", [])
+        if diffs:
+            for diff in diffs:
+                st.warning(f"• {diff}")
+        else:
+            st.caption("Keine Abweichungen.")
 
+def get_index_for_default(options, search_strings):
+    if not isinstance(search_strings, list): search_strings = [search_strings]
+    for search in search_strings:
+        for i, option in enumerate(options):
+            if search.lower() in option.lower(): return i
+    return 0
 
-# ... (Restliche Helper Funktionen: get_index_for_default, parse_selection, get_versions bleiben gleich)
-# ... (Sidebar Code bleibt gleich)
+def parse_selection(selection):
+    if not selection or "(" not in selection: return None, "file"
+    name = selection.split("(")[0].strip()
+    source = "file" if "(file)" in selection.lower() else "langfuse"
+    return name, source
+
+def get_versions(selection):
+    name, source = parse_selection(selection)
+    if not name: return ["latest"]
+    return discovery.get_prompt_versions(name, source)
+
+# =========================================================
+# SIDEBAR
+# =========================================================
+with st.sidebar:
+    st.header("⚙️ Konfiguration")
+    
+    if not config.api_key:
+        st.warning("⚠️ API Key fehlt")
+        config.api_key = st.text_input("Gemini API Key", type="password")
+    
+    st.divider()
+    
+    st.subheader("🤖 Modell Settings")
+    available_models = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"]
+    model_choice = st.selectbox("Modell", available_models, index=0)
+    temp_val = st.slider("Kreativität (Temp)", 0.0, 1.0, 0.2, 0.1)
+    model_settings = {"model": model_choice, "temp": temp_val}
+    
+    st.divider()
+    
+    st.subheader("Prompts")
+    available = discovery.list_available_prompts()
+    
+    opts_extract = [f"{p['display_name']} ({p['source']})" for p in available["extraction"]]
+    opts_draft = [f"{p['display_name']} ({p['source']})" for p in available["draft"]]
+    opts_write = [f"{p['display_name']} ({p['source']})" for p in available["write"]]
+    opts_check = [f"{p['display_name']} ({p['source']})" for p in available["control"]]
+    
+    # 1. Extraction
+    idx_e = get_index_for_default(opts_extract, "extract")
+    p1_sel = st.selectbox("1. Daten-Extraktion", opts_extract, index=idx_e)
+    p1_ver = st.selectbox("Version", get_versions(p1_sel), key="v1")
+    
+    # 2. Draft (Concept)
+    idx_d = get_index_for_default(opts_draft, ["draft", "concept"])
+    p2_sel = st.selectbox("2. Konzept/Planung", opts_draft, index=idx_d)
+    p2_ver = st.selectbox("Version", get_versions(p2_sel), key="v2")
+
+    # 3. Write (Article)
+    idx_w = get_index_for_default(opts_write, ["write", "artikel", "article"])
+    p3_sel = st.selectbox("3. Artikel Schreiben", opts_write, index=idx_w)
+    p3_ver = st.selectbox("Version", get_versions(p3_sel), key="v3")
+    
+    # 4. Check
+    idx_c = get_index_for_default(opts_check, ["check", "control"])
+    p4_sel = st.selectbox("4. Fakten-Check", opts_check, index=idx_c)
+    p4_ver = st.selectbox("Version", get_versions(p4_sel), key="v4")
+
 
 # =========================================================
 # MAIN CONTENT
 # =========================================================
-# ... (Setup Code bis zu den Tabs bleibt gleich)
+st.title("📰 AI Editorial Assistant")
+
+col1, col2 = st.columns([1, 1])
+with col1:
+    meta_input = st.text_area("Metadaten", height=100, placeholder="Absender, Datum...")
+    text_input = st.text_area("Nachrichtentext", height=300, placeholder="Inhalt...")
+with col2:
+    uploaded_files = st.file_uploader("Anhänge", type=["pdf", "docx", "txt"], accept_multiple_files=True)
+    st.info(f"Modell: {model_choice} | Datum: {processor.get_date_string()}")
+    start_btn = st.button("🚀 Workflow starten", type="primary", use_container_width=True)
+
+st.divider()
+status_container = st.status("Bereit...", expanded=False)
 
 # 4 Tabs für die 4 Phasen
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 1. Daten (JSON)", 
     "💡 2. Konzept (Tabelle)", 
-    "📰 3. Artikel (Preview)", # Umbenannt
+    "📰 3. Artikel (Preview)", 
     "✅ 4. Check (Report)"
 ])
 
-# ... (Start Button Logik und Workflow Steps bleiben gleich)
-# ... (step_write_article liefert jetzt JSON zurück)
+if start_btn:
+    # Reset workflow data
+    st.session_state.workflow_data = {}
+    processor.logger.clear()
+    status_container.update(label="🚀 Workflow läuft...", state="running", expanded=True)
+    
+    try:
+        # Prompt Configs
+        c1 = {"name": parse_selection(p1_sel)[0], "source": parse_selection(p1_sel)[1], "version": p1_ver}
+        c2 = {"name": parse_selection(p2_sel)[0], "source": parse_selection(p2_sel)[1], "version": p2_ver}
+        c3 = {"name": parse_selection(p3_sel)[0], "source": parse_selection(p3_sel)[1], "version": p3_ver}
+        c4 = {"name": parse_selection(p4_sel)[0], "source": parse_selection(p4_sel)[1], "version": p4_ver}
+        
+        # 0. Parse Input
+        status_container.write("📎 Parse Dokumente...")
+        file_content = processor.step_parsing(uploaded_files)
+        full_raw_input = f"META: {meta_input}\nTEXT: {text_input}\nFILES: {file_content}"
+        st.session_state.workflow_data["raw"] = full_raw_input
+        
+        # 1. Extract
+        status_container.write(f"🤖 Extraktion mit {c1['name']}...")
+        json_data = processor.step_extraction(c1, full_raw_input, model_settings)
+        st.session_state.workflow_data["json"] = json_data
+        
+        # 2. Draft (Concept)
+        status_container.write(f"💡 Konzept mit {c2['name']}...")
+        concept_json = processor.step_draft_concept(c2, json_data, model_settings)
+        st.session_state.workflow_data["concept"] = concept_json
+        
+        # 3. Write (Article)
+        status_container.write(f"✍️ Artikel schreiben mit {c3['name']}...")
+        article_data = processor.step_write_article(c3, json_data, concept_json, model_settings)
+        st.session_state.workflow_data["article"] = article_data
+
+        # 4. Check (Hier müssen wir evtl. den Article in String wandeln für den Check-Input)
+        status_container.write(f"🔍 Check mit {c4['name']}...")
+        
+        # Article kann JSON oder String sein, Check braucht String
+        article_text_for_check = json.dumps(article_data, ensure_ascii=False) if isinstance(article_data, dict) else str(article_data)
+        
+        check_text = processor.step_check(c4, article_text_for_check, json_data, full_raw_input, model_settings)
+        st.session_state.workflow_data["check"] = check_text
+
+        status_container.update(label="✅ Fertig!", state="complete", expanded=False)
+
+    except Exception as e:
+        status_container.update(label="❌ Fehler", state="error")
+        st.error(f"Fehler im Ablauf: {str(e)}")
+        # Debugging: Stacktrace anzeigen
+        import traceback
+        st.code(traceback.format_exc())
+
+    finally:
+        processor.flush_stats()
 
 # --- OUTPUT VIEW ---
-if st.session_state.workflow_data:
+# Hier greifen wir sicher auf session_state zu
+if "workflow_data" in st.session_state and st.session_state.workflow_data:
     d = st.session_state.workflow_data
     
     # 1. Daten
@@ -198,25 +344,25 @@ if st.session_state.workflow_data:
             else: st.markdown(d["concept"])
         else: st.info("Warte auf Konzept...")
 
-    # 3. Artikel (NEU)
+    # 3. Artikel (NEU - Dashboard)
     with tab3:
         if "article" in d:
-            # Versuchen, das JSON zu parsen (falls String)
+            # Versuchen zu parsen
             a_data = d["article"]
             if isinstance(a_data, str):
                 a_data = try_parse_json(a_data)
             
             if isinstance(a_data, dict):
-                # 1. Schöne Visualisierung
+                # 1. Dashboard Visualisierung
                 render_article_dashboard(a_data)
                 
-                # 2. Raw JSON im Expander
+                # 2. Expander für Raw Data
                 st.divider()
                 with st.expander("🔍 Rohes JSON ansehen"):
                     st.json(a_data)
             else:
-                # Fallback, falls doch Text kam
-                st.warning("⚠️ Format ist kein valides JSON. Zeige Rohdaten:")
+                # Fallback
+                st.warning("⚠️ Konnte Artikel-Format nicht parsen (kein JSON). Zeige Text:")
                 st.markdown(d["article"])
         else: st.info("Warte auf Artikel...")
 
@@ -227,7 +373,7 @@ if st.session_state.workflow_data:
 
     # --- DOWNLOADS ---
     st.divider()
-    with st.expander("💾 Alle Ergebnisse speichern", expanded=True):
+    with st.expander("💾 Ergebnisse herunterladen", expanded=True):
         c1, c2, c3, c4 = st.columns(4)
         
         if "json" in d:

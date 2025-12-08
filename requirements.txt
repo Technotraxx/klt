@@ -1,0 +1,7 @@
+streamlit
+google-genai
+langfuse
+pymupdf
+python-docx
+requests
+watchdog

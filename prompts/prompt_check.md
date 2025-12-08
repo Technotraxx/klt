@@ -50,7 +50,7 @@ Du bist Schlussredakteur. Du prüfst den generierten Artikel gegen die Originald
 - Teaser 200–300 Zeichen?
 - Body ca. 1200 Zeichen (±50)?
 - Zwischenüberschrift vorhanden (Online)?
-- KI-Kennzeichnung am Ende?
+- KI-Kennzeichnung am Ende (nur bei Online Pflicht)?
 - Print kürzer als Online?
 
 ---

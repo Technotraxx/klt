@@ -1,5 +1,5 @@
 """
-Workflow Modul
+Workflow Modul - Updated for Langfuse Tracing
 """
 import json
 import os
@@ -11,6 +11,7 @@ try:
     from langfuse import observe, Langfuse
     LANGFUSE_AVAILABLE = True
 except ImportError:
+    # Dummy Decorator falls Langfuse fehlt
     def observe(*args, **kwargs):
         def decorator(func): return func
         return decorator
@@ -39,22 +40,20 @@ class WorkflowProcessor:
     # MASTER WORKFLOW (Parent Trace)
     # ----------------------------------------------------------------
     
-    @observe(name="editorial_workflow") # <--- Das hier erzeugt den EINEN Trace
+    @observe(name="editorial_workflow") 
     def run_workflow(self, uploaded_files, meta_input, text_input, prompt_configs, model_settings, status_callback=None):
         """
         Führt alle Schritte innerhalb eines einzigen Traces aus.
-        status_callback: Funktion, um Updates an die UI zu senden (z.B. container.write)
         """
         results = {}
         
-        # Helper für Status-Updates
         def update_ui(msg):
             if status_callback: status_callback(msg)
             self.logger.info(msg)
 
         # 0. Parsing
         update_ui("📎 Parse Dokumente...")
-        file_content = self.step_parsing(uploaded_files) # Wird automatisch Child-Span
+        file_content = self.step_parsing(uploaded_files)
         full_raw_input = f"META: {meta_input}\nTEXT: {text_input}\nFILES: {file_content}"
         results["raw"] = full_raw_input
         
@@ -76,15 +75,16 @@ class WorkflowProcessor:
         # 4. Check
         update_ui(f"🔍 Check mit {prompt_configs['check']['name']}...")
         
-        # Check Input vorbereiten
+        # Konvertierung für Check Input
         article_text_for_check = json.dumps(article_data, ensure_ascii=False) if isinstance(article_data, dict) else str(article_data)
+        
         check_text = self.step_check(prompt_configs['check'], article_text_for_check, json_data, full_raw_input, model_settings)
         results["check"] = check_text
         
         return results
 
     # ----------------------------------------------------------------
-    # SUB-STEPS (Werden automatisch zu Spans im Trace)
+    # SUB-STEPS
     # ----------------------------------------------------------------
 
     @observe() 
@@ -118,14 +118,10 @@ class WorkflowProcessor:
         return self._api_call(system_prompt, user_msg, False, model_settings, "gemini-final-check")
 
     # ----------------------------------------------------------------
-    # API CALL (Generation)
+    # API CALL
     # ----------------------------------------------------------------
 
     def _api_call(self, system_prompt, user_input, json_mode, model_settings, name):
-        """
-        Führt den Call aus. Durch @observe auf den Parent-Methoden
-        können wir hier den Context Manager nutzen, um Generation-Details hinzuzufügen.
-        """
         settings = model_settings or {"model": None, "temp": 0.1}
         model_name = settings.get("model", "gemini-1.5-flash")
         
@@ -136,13 +132,10 @@ class WorkflowProcessor:
         if not (self.config.enable_langfuse and LANGFUSE_AVAILABLE):
             return self._execute_gemini(full_system_prompt, user_input, model_name, settings.get("temp"), json_mode)
 
-        # MIT Langfuse V3 Context Manager
         try:
-            langfuse = Langfuse() # Holt Kontext automatisch, wenn wir im Trace sind
+            # Langfuse Context Manager
+            langfuse = Langfuse()
             
-            # Hier nutzen wir start_as_current_generation. 
-            # Weil diese Methode von einer @observe Methode aufgerufen wird,
-            # wird diese Generation automatisch untergeordnet.
             with langfuse.start_as_current_generation(
                 name=name,
                 model=model_name,
@@ -160,7 +153,6 @@ class WorkflowProcessor:
                 
                 text_response = response.text
                 
-                # Usage Tracking
                 usage_dict = None
                 if hasattr(response, 'usage_metadata') and response.usage_metadata:
                     usage_dict = {
@@ -181,8 +173,13 @@ class WorkflowProcessor:
             return self._execute_gemini(full_system_prompt, user_input, model_name, settings.get("temp"), json_mode)
 
     def _execute_gemini(self, system_prompt, user_input, model, temp, json_mode):
-        # ... (bleibt gleich wie vorher)
-        response = self.config.generate_content(user_content=user_input, system_instruction=system_prompt, model_name=model, temperature=temp, json_mode=json_mode)
+        response = self.config.generate_content(
+            user_content=user_input, 
+            system_instruction=system_prompt, 
+            model_name=model, 
+            temperature=temp, 
+            json_mode=json_mode
+        )
         text = response.text
         if json_mode:
             clean = text.replace("```json", "").replace("```", "").strip()

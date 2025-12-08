@@ -43,107 +43,95 @@ JSON-Datenstruktur mit extrahierten Informationen (Nachrichtenkern, Entitäten, 
 ```json
 {
   "headlines": {
-    "print_hauptzeile": "Neues Tech-Zentrum: 50 Jobs für Hannover",
-    "print_unterzeile": "Beispiel GmbH investiert 12 Millionen Euro in Start-up-Campus",
-    "online_seo": "Technologiezentrum Hannover eröffnet - 50 neue Arbeitsplätze",
-    "social_media": "🚀 Tech-Boom in Hannover: Neues Zentrum eröffnet!",
-    "reasoning": "Lokaler Bezug + Arbeitsplätze als Aufmacher",
-    "confidence": 2
+    "print_hauptzeile": "[String: Prägnante Hauptüberschrift für Print, max. 50-60 Zeichen, mit Kernfakt und lokalem Bezug]",
+    "print_unterzeile": "[String: Ergänzende Unterzeile mit weiteren Details wie Akteur, Summen, Ort]",
+    "online_seo": "[String: SEO-optimierte Überschrift mit Hauptkeyword am Anfang]",
+    "social_media": "[String: Aufmerksamkeitsstarke Kurzform mit optionalem Emoji]",
+    "reasoning": "[String: Kurze Begründung der Headline-Strategie]",
+    "confidence": "[Integer 1-3: Konfidenz der Einschätzung, 1=unsicher, 3=sehr sicher]"
   },
   
   "teaser": {
     "print": {
-      "text": "Die Beispiel GmbH eröffnet am 15. März ein 5000 Quadratmeter großes Technologiezentrum in Hannover. Mit einer Investition von 12 Millionen Euro entstehen 50 neue Arbeitsplätze.",
-      "zeichen": 180,
-      "reasoning": "Alle Kernfakten kompakt",
-      "confidence": 2
+      "text": "[String: Kompakter Anreißer mit allen W-Fragen, 150-200 Zeichen]",
+      "zeichen": "[Integer: Exakte Zeichenanzahl des Textes]",
+      "reasoning": "[String: Begründung der Teaser-Gestaltung]",
+      "confidence": "[Integer 1-3]"
     },
     "online": {
-      "text": "Hannover bekommt ein neues Technologiezentrum: Die Beispiel GmbH investiert 12 Millionen Euro in einen modernen Start-up-Campus. Am 15. März wird das 5000 Quadratmeter große Zentrum eröffnet, das Platz für 50 neue Arbeitsplätze bietet.",
-      "zeichen": 245,
-      "reasoning": "SEO-Keywords integriert",
-      "confidence": 2
+      "text": "[String: Ausführlicherer Teaser mit SEO-Keywords, 200-300 Zeichen]",
+      "zeichen": "[Integer: Exakte Zeichenanzahl]",
+      "reasoning": "[String: Begründung]",
+      "confidence": "[Integer 1-3]"
     },
     "social_media": {
-      "facebook": "🎉 Große Neuigkeiten für #Hannover! Die Beispiel GmbH eröffnet ein hochmodernes Technologiezentrum. 12 Mio. € Investition = 50 neue Jobs! Eröffnung am 15.3. mit OB @belitOnay. #Innovation #Startups #Wirtschaft",
-      "instagram": "Tech-Boom in Hannover! 🚀 Neues Zentrum → 50 Jobs 💼 Opening 15.3. #hannoverliebe #startuplife #innovation",
-      "linkedin": "Beispiel GmbH investiert 12 Mio. EUR in neues Technologiezentrum Hannover. 5000qm für innovative Start-ups. Eröffnung 15.03.2024. Ein wichtiger Schritt für den Wirtschaftsstandort Region Hannover.",
-      "reasoning": "Plattformspezifisch optimiert",
-      "confidence": 1
+      "facebook": "[String: Post mit Hashtags, Mentions, Emojis, max. 280 Zeichen]",
+      "instagram": "[String: Knapper Post mit relevanten Hashtags, visuell orientiert]",
+      "linkedin": "[String: Professioneller Ton, Fakten-fokussiert, ohne Emojis]",
+      "reasoning": "[String: Begründung der Plattform-Anpassung]",
+      "confidence": "[Integer 1-3]"
     }
   },
   
   "artikel_struktur": {
-    "lead": "HANNOVER. Mit einer Investition von 12 Millionen Euro eröffnet die Beispiel GmbH am 15. März ein 5000 Quadratmeter großes Technologiezentrum im Technologiepark Hannover, das 50 neue Arbeitsplätze schaffen soll.",
+    "lead": "[String: Vollständiger Lead-Absatz mit Ortsmarke, allen Kernfakten in einem Satz]",
     "absatz_reihenfolge": [
-      "1. Eröffnungsdetails und Investitionssumme",
-      "2. Zitat Oberbürgermeister zur Bedeutung",
-      "3. Details zum Zentrum und Ausstattung",
-      "4. Zitat Geschäftsführer zu Zielen",
-      "5. Hintergrund Digitalisierungsstrategie",
-      "6. Infobox mit Termin Tag der offenen Tür"
+      "[Array of Strings: Nummerierte Liste der empfohlenen Absatzthemen in journalistisch sinnvoller Reihenfolge]"
     ],
     "zitat_platzierung": {
-      "absatz_2": "Zitat Onay - politische Einordnung",
-      "absatz_4": "Zitat Weber - Unternehmensperspektive"
+      "[absatz_nummer]": "[String: Welches Zitat von wem mit welcher Funktion]"
     },
     "laenge": {
-      "print_zeilen": 45,
-      "online_woerter": 350,
-      "reasoning": "Standardlänge Wirtschaftslokal",
-      "confidence": 1
+      "print_zeilen": "[Integer: Empfohlene Zeilenzahl für Print]",
+      "online_woerter": "[Integer: Empfohlene Wortanzahl für Online]",
+      "reasoning": "[String: Begründung der Längenempfehlung]",
+      "confidence": "[Integer 1-3]"
     }
   },
   
   "seo_optimierung": {
-    "hauptkeyword": "Technologiezentrum Hannover",
+    "hauptkeyword": "[String: Primäres Keyword für Suchmaschinenoptimierung]",
     "nebenkeywords": [
-      "Start-up Campus Hannover",
-      "Beispiel GmbH",
-      "Arbeitsplätze Hannover",
-      "Innovation Hannover",
-      "Technologiepark"
+      "[Array of Strings: 4-6 sekundäre Keywords und Keyword-Kombinationen]"
     ],
-    "meta_description": "Beispiel GmbH eröffnet neues Technologiezentrum in Hannover. 12 Mio Euro Investition schafft 50 Arbeitsplätze für Start-ups. Eröffnung am 15. März 2024.",
-    "url_slug": "technologiezentrum-hannover-eroeffnung-2024",
-    "reasoning": "Lokale + thematische Keywords",
-    "confidence": 2
+    "meta_description": "[String: Meta-Beschreibung für Suchmaschinen, 150-160 Zeichen]",
+    "url_slug": "[String: URL-freundlicher Slug in Kleinbuchstaben mit Bindestrichen]",
+    "reasoning": "[String: Begründung der Keyword-Strategie]",
+    "confidence": "[Integer 1-3]"
   },
   
   "crossmedia_planung": {
     "print": {
-      "ausgabe": ["HAZ Lokalteil", "NP Wirtschaft"],
-      "platzierung": "Seite 1 Lokalteil oder Wirtschaft",
-      "samstag_ausgabe": true,
-      "mit_bild": true
+      "ausgabe": ["[Array of Strings: Relevante Printausgaben/Titel]"],
+      "platzierung": "[String: Empfohlene Seitenplatzierung]",
+      "samstag_ausgabe": "[Boolean: Eignung für Wochenendausgabe]",
+      "mit_bild": "[Boolean: Bildempfehlung ja/nein]"
     },
     "online": {
-      "channels": ["HAZ.de", "NP-Online", "Newsletter"],
-      "kategorie": "Wirtschaft/Lokales",
-      "push_notification": false,
-      "paywall": false
+      "channels": ["[Array of Strings: Relevante Online-Kanäle]"],
+      "kategorie": "[String: Ressort-Zuordnung]",
+      "push_notification": "[Boolean: Push-Empfehlung ja/nein]",
+      "paywall": "[Boolean: Paywall-Empfehlung ja/nein]"
     },
     "timing": {
-      "online_first": "15.03.2024, 06:00 Uhr",
-      "print": "15.03.2024, Morgenausgabe",
-      "social_media": "15.03.2024, 11:00 Uhr",
-      "newsletter": "15.03.2024, 17:00 Uhr",
-      "reasoning": "Termingebunden, Morgenpublikation",
-      "confidence": 2
+      "online_first": "[String: Datum und Uhrzeit für Online-Veröffentlichung, Format TT.MM.JJJJ, HH:MM Uhr]",
+      "print": "[String: Datum und Ausgabe für Print]",
+      "social_media": "[String: Datum und Uhrzeit für Social-Media-Posts]",
+      "newsletter": "[String: Datum und Uhrzeit für Newsletter-Einbindung]",
+      "reasoning": "[String: Begründung der Timing-Strategie]",
+      "confidence": "[Integer 1-3]"
     }
   },
   
   "empfehlungen": {
-    "prioritaet": "Hoch",
-    "ressort": "Wirtschaft/Lokales",
+    "prioritaet": "[String: Hoch | Mittel | Niedrig]",
+    "ressort": "[String: Zuständiges Ressort bzw. Ressortkombination]",
     "follow_up": [
-      "Fotostrecke Tag der offenen Tür",
-      "Interview mit ersten Start-ups",
-      "Hintergrund: Start-up-Szene Hannover"
+      "[Array of Strings: 2-4 konkrete Vorschläge für Folgeartikel oder -formate]"
     ],
-    "bildvorschlag": "Rendering/Foto Technologiezentrum prominent",
-    "reasoning": "Hoher Lokalbezug + Wirtschaftsrelevanz",
-    "confidence": 2
+    "bildvorschlag": "[String: Art und Motiv des empfohlenen Bildmaterials]",
+    "reasoning": "[String: Begründung der Gesamtbewertung]",
+    "confidence": "[Integer 1-3]"
   }
 }
 ```

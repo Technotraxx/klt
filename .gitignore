@@ -1,0 +1,10 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Streamlit Local Secrets (NIEMALS committen)
+.streamlit/secrets.toml
+
+# Virtual Environment
+venv/
+.env

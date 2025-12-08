@@ -7,13 +7,18 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 
+# --- NEU: Import ---
+from models import DEFAULT_MODEL 
+
 class Config:
     def __init__(self):
         self.langfuse = None 
         self.BASE_DIR = Path(__file__).parent.parent
         self.PROMPT_DIR = self.BASE_DIR / "prompts"
         self.PROMPT_DIR.mkdir(parents=True, exist_ok=True)
-        self.MODEL_NAME = 'gemini-flash-latest'
+        
+        # --- NEU: Nutzung der Konstante ---
+        self.MODEL_NAME = DEFAULT_MODEL
         
         # API Keys
         self.api_key = self._get_secret("GEMINI_API_KEY") or self._get_secret("GOOGLE_API_KEY")
@@ -24,6 +29,7 @@ class Config:
         
         self.enable_langfuse = self._setup_langfuse()
 
+    # ... (Rest der Datei bleibt exakt gleich: _get_secret, _setup_langfuse, generate_content)
     def _get_secret(self, key):
         if key in st.secrets:
             return st.secrets[key]
@@ -52,12 +58,10 @@ class Config:
             return False
 
     def generate_content(self, user_content, system_instruction=None, model_name=None, temperature=0.1, json_mode=False):
-        """
-        Generiert Content mit separater System Instruction
-        """
         if not self.client:
             raise ValueError("API Key fehlt!")
             
+        # Fallback auf Default aus models.py
         target_model = model_name if model_name else self.MODEL_NAME
         
         config = types.GenerateContentConfig(

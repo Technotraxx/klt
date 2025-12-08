@@ -1,10 +1,9 @@
 """
-Workflow Modul - Updated for Langfuse Tracing
+Workflow Modul - Updated for Scraper & Langfuse Tracing
 """
 import json
 import os
 from datetime import datetime
-from models import DEFAULT_MODEL
 
 # Langfuse Import Check
 LANGFUSE_AVAILABLE = False
@@ -20,6 +19,8 @@ except ImportError:
 from document_parser import DocumentParser
 from prompt_manager import PromptManager
 from logger import WorkflowLogger, StatusTracker
+from models import DEFAULT_MODEL
+from web_scraper import PresseportalScraper  # <--- NEU: Import
 
 class WorkflowProcessor:
     def __init__(self, config):
@@ -32,6 +33,7 @@ class WorkflowProcessor:
 
         self.prompt_manager = PromptManager(config.PROMPT_DIR, langfuse_client=lf_client, use_langfuse=config.enable_langfuse)
         self.document_parser = DocumentParser()
+        self.scraper = PresseportalScraper() # <--- NEU: Init
         self.logger = WorkflowLogger()
 
     def get_date_string(self):
@@ -42,9 +44,9 @@ class WorkflowProcessor:
     # ----------------------------------------------------------------
     
     @observe(name="editorial_workflow") 
-    def run_workflow(self, uploaded_files, meta_input, text_input, prompt_configs, model_settings, status_callback=None):
+    def run_workflow(self, uploaded_files, meta_input, text_input, url_input, prompt_configs, model_settings, status_callback=None):
         """
-        Führt alle Schritte innerhalb eines einzigen Traces aus.
+        Führt alle Schritte aus: Scraping -> Parsing -> Extract -> Draft -> Write -> Check
         """
         results = {}
         
@@ -52,10 +54,31 @@ class WorkflowProcessor:
             if status_callback: status_callback(msg)
             self.logger.info(msg)
 
-        # 0. Parsing
+        # 0.1 Scraping (Optional)
+        scraped_text = ""
+        if url_input and "presseportal" in url_input:
+            update_ui(f"🌐 Scrape URL: {url_input}...")
+            scraped_data = self.scraper.scrape(url_input)
+            
+            if "error" not in scraped_data:
+                scraped_text = self.scraper.format_for_llm(scraped_data)
+                # Wir speichern das auch im Result, falls wir es im Frontend anzeigen wollen
+                results["scraped_data"] = scraped_data 
+            else:
+                update_ui(f"⚠️ Scraping Warnung: {scraped_data['error']}")
+                scraped_text = f"[FEHLER BEIM SCRAPING VON {url_input}: {scraped_data['error']}]"
+
+        # 0.2 Parsing Files
         update_ui("📎 Parse Dokumente...")
         file_content = self.step_parsing(uploaded_files)
-        full_raw_input = f"META: {meta_input}\nTEXT: {text_input}\nFILES: {file_content}"
+        
+        # Context zusammenbauen
+        full_raw_input = (
+            f"--- WEB SCRAPE INPUT ---\n{scraped_text}\n\n"
+            f"--- MANUAL META INPUT ---\n{meta_input}\n\n"
+            f"--- MANUAL TEXT INPUT ---\n{text_input}\n\n"
+            f"--- FILE ATTACHMENTS ---\n{file_content}"
+        )
         results["raw"] = full_raw_input
         
         # 1. Extraction
@@ -76,7 +99,7 @@ class WorkflowProcessor:
         # 4. Check
         update_ui(f"🔍 Check mit {prompt_configs['check']['name']}...")
         
-        # Konvertierung für Check Input
+        # Konvertierung für Check Input (Artikel muss String sein)
         article_text_for_check = json.dumps(article_data, ensure_ascii=False) if isinstance(article_data, dict) else str(article_data)
         
         check_text = self.step_check(prompt_configs['check'], article_text_for_check, json_data, full_raw_input, model_settings)
@@ -124,8 +147,6 @@ class WorkflowProcessor:
 
     def _api_call(self, system_prompt, user_input, json_mode, model_settings, name):
         settings = model_settings or {"model": None, "temp": 0.1}
-        
-        # --- NEU: Nutzung des Defaults aus models.py ---
         model_name = settings.get("model", DEFAULT_MODEL)
         
         date_str = self.get_date_string()
@@ -136,6 +157,7 @@ class WorkflowProcessor:
             return self._execute_gemini(full_system_prompt, user_input, model_name, settings.get("temp"), json_mode)
 
         try:
+            # Langfuse Context Manager
             langfuse = Langfuse()
             
             with langfuse.start_as_current_generation(

@@ -25,6 +25,17 @@ class Config:
         # LangFuse V3 Setup
         # Wir setzen nur die Env Vars, die Instanziierung übernimmt der Workflow bei Bedarf
         self.enable_langfuse = self._setup_langfuse_env()
+        
+        # LangFuse Client für Prompt Discovery (V3 Pattern)
+        self.langfuse = None
+        if self.enable_langfuse:
+            try:
+                from langfuse import Langfuse
+                self.langfuse = Langfuse()
+            except ImportError:
+                print("⚠️ Langfuse SDK nicht installiert")
+            except Exception as e:
+                print(f"⚠️ Langfuse Init Fehler: {e}")
 
     def _get_secret(self, key):
         if key in st.secrets:

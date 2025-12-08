@@ -4,4 +4,3 @@ langfuse>=3.0.0
 pymupdf
 python-docx
 requests
-watchdog

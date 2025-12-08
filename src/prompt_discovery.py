@@ -1,21 +1,22 @@
 """
 Prompt Discovery Modul
-Findet alle verfügbaren Prompts aus .md Dateien und LangFuse
+Findet alle verfügbaren Prompts aus .md Dateien und LangFuse API
 """
 
+import os
+import requests
 from pathlib import Path
 from typing import Dict, List
-
 
 class PromptDiscovery:
     """Entdeckt und listet alle verfügbaren Prompts"""
     
     def __init__(self, prompt_dir: Path, langfuse_client=None):
-        self.prompt_dir = Path(prompt_dir)
+        self.prompt_dir = prompt_dir
         self.langfuse = langfuse_client
     
     def discover_file_prompts(self) -> List[Dict]:
-        """Scannt nach .md Prompt-Dateien"""
+        """Scannt nach lokalen .md Prompt-Dateien"""
         prompts = []
         if not self.prompt_dir.exists():
             return prompts
@@ -32,35 +33,30 @@ class PromptDiscovery:
     def discover_langfuse_prompts(self) -> List[Dict]:
         """Fragt LangFuse nach ALLEN verfügbaren Prompts via REST API"""
         prompts = []
-        if not self.langfuse:
-            print("⚠️ Discovery: LangFuse Client nicht verfügbar")
-            return prompts
         
+        # Keys aus Environment lesen (wurden in config.py gesetzt)
+        public_key = os.environ.get('LANGFUSE_PUBLIC_KEY')
+        secret_key = os.environ.get('LANGFUSE_SECRET_KEY')
+        # Versuche verschiedene Varianten für den Host
+        base_url = os.environ.get('LANGFUSE_HOST') or os.environ.get('LANGFUSE_BASE_URL')
+        
+        if not (public_key and secret_key and base_url):
+            return prompts
+            
         try:
-            import os
-            import requests
-            
-            # Hole API Keys aus Environment (wurden in config.py gesetzt)
-            public_key = os.environ.get('LANGFUSE_PUBLIC_KEY')
-            secret_key = os.environ.get('LANGFUSE_SECRET_KEY')
-            base_url = os.environ.get('LANGFUSE_BASE_URL', 'https://langfuse.ki.rndtech.de')
-            
-            if not public_key or not secret_key:
-                print("⚠️ Discovery: LangFuse Credentials nicht gefunden")
-                return prompts
-            
-            # REST API Endpoint
+            # REST API Endpoint um Liste aller Prompts zu holen
+            # (Das SDK hat oft keine einfache "List All" Funktion für Dropdowns)
             url = f"{base_url}/api/public/v2/prompts"
             
-            # HTTP Basic Auth mit public:secret
             response = requests.get(
                 url,
                 auth=(public_key, secret_key),
-                headers={'Content-Type': 'application/json'}
+                headers={'Content-Type': 'application/json'},
+                timeout=5
             )
             
             if response.status_code != 200:
-                print(f"⚠️ Discovery: LangFuse API Error {response.status_code}")
+                print(f"Discovery Error: {response.status_code}")
                 return prompts
             
             data = response.json()
@@ -69,8 +65,7 @@ class PromptDiscovery:
             # Gruppiere Prompts nach Namen und sammle Versionen
             for prompt_data in data.get('data', []):
                 name = prompt_data.get('name')
-                if not name:
-                    continue
+                if not name: continue
                 
                 if name not in prompt_dict:
                     prompt_dict[name] = {
@@ -80,48 +75,35 @@ class PromptDiscovery:
                         "versions": set()
                     }
                 
-                # Sammle Labels/Versionen
+                # Labels als Versionen
                 labels = prompt_data.get('labels', [])
                 if labels:
                     prompt_dict[name]["versions"].update(labels)
                 
-                # Füge Version-Nummer hinzu
-                version = prompt_data.get('version')
-                if version:
-                    prompt_dict[name]["versions"].add(f"v{version}")
+                # Versionsnummer
+                v_num = prompt_data.get('version')
+                if v_num:
+                    prompt_dict[name]["versions"].add(f"v{v_num}")
             
-            # Konvertiere zu Liste
+            # Formatieren
             for prompt_info in prompt_dict.values():
-                prompt_info["versions"] = sorted(list(prompt_info["versions"]))
+                # Sortierung: production, staging, dann Rest
+                vers = list(prompt_info["versions"])
+                priority = ["production", "staging", "latest"]
+                sorted_vers = [v for v in priority if v in vers]
+                sorted_vers += sorted([v for v in vers if v not in priority])
                 
-                # Sortiere: production zuerst, dann staging, dann rest
-                priority_order = ["production", "staging"]
-                sorted_versions = []
-                for prio in priority_order:
-                    if prio in prompt_info["versions"]:
-                        sorted_versions.append(prio)
-                        prompt_info["versions"].remove(prio)
-                sorted_versions.extend(sorted(prompt_info["versions"]))
-                prompt_info["versions"] = sorted_versions
-                
+                prompt_info["versions"] = sorted_vers if sorted_vers else ["latest"]
                 prompts.append(prompt_info)
-                print(f"✅ Discovery: {prompt_info['name']} (Versionen: {len(prompt_info['versions'])})")
-            
-            print(f"ℹ️  Discovery: {len(prompts)} LangFuse Prompts gefunden")
-            
-        except ImportError:
-            print("⚠️ Discovery: 'requests' Modul nicht verfügbar - installiere mit: pip install requests")
+                
         except Exception as e:
-            print(f"⚠️ Fehler beim Laden von LangFuse Prompts via REST API: {e}")
-            import traceback
-            print(traceback.format_exc())
+            print(f"LangFuse Discovery Failed: {e}")
         
         return prompts
     
     def list_available_prompts(self) -> Dict[str, List[Dict]]:
         """
         Listet alle verfügbaren Prompts, kategorisiert nach Phase
-        Returns: {"extraction": [...], "draft": [...], "control": [...]}
         """
         file_prompts = self.discover_file_prompts()
         langfuse_prompts = self.discover_langfuse_prompts()
@@ -132,6 +114,7 @@ class PromptDiscovery:
         for prompt in all_prompts:
             name_lower = prompt["name"].lower()
             
+            # Simple Keyword Matching für Kategorien
             if "extract" in name_lower:
                 categorized["extraction"].append(prompt)
             elif "draft" in name_lower or "generat" in name_lower:
@@ -139,40 +122,21 @@ class PromptDiscovery:
             elif "check" in name_lower or "fact" in name_lower or "control" in name_lower:
                 categorized["control"].append(prompt)
             else:
-                # Fallback: zu allen hinzufügen
+                # Unbekannte Prompts überall anzeigen
                 for cat in categorized:
                     categorized[cat].append(prompt)
         
         return categorized
     
-    def format_for_dropdown(self, prompts: List[Dict]) -> List[str]:
-        """Formatiert für Gradio Dropdown"""
-        formatted = []
-        for prompt in prompts:
-            source_display = "File" if prompt["source"] == "file" else "LangFuse"
-            display = f"{prompt['display_name']} ({source_display})"
-            formatted.append(display)
-        return formatted
-    
-    def parse_dropdown_selection(self, selection: str) -> tuple:
-        """Parsed Dropdown-String zu (name, source)"""
-        if not selection or "(" not in selection:
-            return None, None
-        
-        name = selection.split("(")[0].strip()
-        source_part = selection.split("(")[1].split(")")[0].strip().lower()
-        source = "file" if source_part == "file" else "langfuse"
-        return name, source
-    
     def get_prompt_versions(self, name: str, source: str) -> List[str]:
         """Holt verfügbare Versionen für einen Prompt"""
         if source == "file":
-            prompts = self.discover_file_prompts()
-        else:
-            prompts = self.discover_langfuse_prompts()
+            return ["latest"]
         
-        for prompt in prompts:
-            if prompt["name"] == name or prompt["display_name"] == name:
-                return prompt.get("versions", ["-"])
-        
-        return ["-"]
+        # Um API Calls zu sparen, hier eine vereinfachte Logik:
+        # In einer echten App würde man cachen. Hier rufen wir neu ab.
+        prompts = self.discover_langfuse_prompts()
+        for p in prompts:
+            if p["name"] == name:
+                return p["versions"]
+        return ["latest"]

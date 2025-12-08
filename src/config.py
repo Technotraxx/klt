@@ -1,5 +1,5 @@
 """
-Konfigurationsmodul - V3 Compliant
+Konfigurationsmodul
 """
 import os
 import streamlit as st
@@ -9,57 +9,69 @@ from google.genai import types
 
 class Config:
     def __init__(self):
+        # 1. Definitive Initialisierung der Variable (Verhindert AttributeError)
+        self.langfuse = None 
+        
+        # 2. Pfade setup
         self.BASE_DIR = Path(__file__).parent.parent
         self.PROMPT_DIR = self.BASE_DIR / "prompts"
-        self.PROMPT_DIR.mkdir(exist_ok=True)
-        self.DEFAULT_MODEL = 'gemini-flash-latest'
+        self.PROMPT_DIR.mkdir(parents=True, exist_ok=True)
         
-        # API Keys
+        # 3. Model Defaults
+        self.MODEL_NAME = 'gemini-flash-lastest'
+        
+        # 4. API Keys
         self.api_key = self._get_secret("GEMINI_API_KEY") or self._get_secret("GOOGLE_API_KEY")
         
+        self.client = None
         if self.api_key:
             self.client = genai.Client(api_key=self.api_key)
-        else:
-            self.client = None
         
-        # LangFuse V3 Setup
-        # Wir setzen nur die Env Vars, die Instanziierung übernimmt der Workflow bei Bedarf
-        self.enable_langfuse = self._setup_langfuse_env()
-        
-        # LangFuse Client für Prompt Discovery (V3 Pattern)
-        self.langfuse = None
-        if self.enable_langfuse:
-            try:
-                from langfuse import Langfuse
-                self.langfuse = Langfuse()
-            except ImportError:
-                print("⚠️ Langfuse SDK nicht installiert")
-            except Exception as e:
-                print(f"⚠️ Langfuse Init Fehler: {e}")
+        # 5. Langfuse Setup (Versucht self.langfuse zu befüllen)
+        self.enable_langfuse = self._setup_langfuse()
 
     def _get_secret(self, key):
         if key in st.secrets:
             return st.secrets[key]
         return os.environ.get(key)
 
-    def _setup_langfuse_env(self):
-        pk = self._get_secret("LANGFUSE_PUBLIC_KEY")
-        sk = self._get_secret("LANGFUSE_SECRET_KEY")
-        host = self._get_secret("LANGFUSE_HOST") or self._get_secret("LANGFUSE_BASE_URL")
-        
-        if pk and sk and host:
-            os.environ["LANGFUSE_PUBLIC_KEY"] = pk
-            os.environ["LANGFUSE_SECRET_KEY"] = sk
-            os.environ["LANGFUSE_HOST"] = host
-            return True
-        return False
+    def _setup_langfuse(self):
+        try:
+            # Versuche Keys zu laden
+            pk = self._get_secret("LANGFUSE_PUBLIC_KEY")
+            sk = self._get_secret("LANGFUSE_SECRET_KEY")
+            host = self._get_secret("LANGFUSE_HOST") or self._get_secret("LANGFUSE_BASE_URL")
+            
+            if pk and sk and host:
+                # Wichtig: Env Vars setzen für die Library (V3 braucht das)
+                os.environ["LANGFUSE_PUBLIC_KEY"] = pk
+                os.environ["LANGFUSE_SECRET_KEY"] = sk
+                os.environ["LANGFUSE_HOST"] = host
+                
+                # Import und Init
+                from langfuse import Langfuse
+                self.langfuse = Langfuse()
+                
+                # Kurzer Auth Check
+                if self.langfuse.auth_check():
+                    print("✅ Langfuse verbunden")
+                    return True
+                else:
+                    print("⚠️ Langfuse Auth fehlgeschlagen")
+                    self.langfuse = None
+                    return False
+            
+            return False
+        except Exception as e:
+            print(f"⚠️ Langfuse Fehler: {e}")
+            self.langfuse = None
+            return False
 
     def generate_content(self, prompt, model_name=None, temperature=0.1, json_mode=False):
-        """Reiner Wrapper für Gemini"""
         if not self.client:
             raise ValueError("API Key fehlt!")
-
-        target_model = model_name if model_name else self.DEFAULT_MODEL
+            
+        target_model = model_name if model_name else self.MODEL_NAME
         
         config = types.GenerateContentConfig(
             temperature=temperature,

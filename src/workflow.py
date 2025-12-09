@@ -1,5 +1,5 @@
 """
-Workflow Modul - Updated for Scraper & Langfuse Tracing
+Workflow Modul - Updated: Fix für JSON Control Characters
 """
 import json
 import os
@@ -20,7 +20,7 @@ from document_parser import DocumentParser
 from prompt_manager import PromptManager
 from logger import WorkflowLogger, StatusTracker
 from models import DEFAULT_MODEL
-from web_scraper import PresseportalScraper  # <--- NEU: Import
+from web_scraper import PresseportalScraper
 
 class WorkflowProcessor:
     def __init__(self, config):
@@ -33,7 +33,7 @@ class WorkflowProcessor:
 
         self.prompt_manager = PromptManager(config.PROMPT_DIR, langfuse_client=lf_client, use_langfuse=config.enable_langfuse)
         self.document_parser = DocumentParser()
-        self.scraper = PresseportalScraper() # <--- NEU: Init
+        self.scraper = PresseportalScraper()
         self.logger = WorkflowLogger()
 
     def get_date_string(self):
@@ -62,7 +62,6 @@ class WorkflowProcessor:
             
             if "error" not in scraped_data:
                 scraped_text = self.scraper.format_for_llm(scraped_data)
-                # Wir speichern das auch im Result, falls wir es im Frontend anzeigen wollen
                 results["scraped_data"] = scraped_data 
             else:
                 update_ui(f"⚠️ Scraping Warnung: {scraped_data['error']}")
@@ -99,7 +98,7 @@ class WorkflowProcessor:
         # 4. Check
         update_ui(f"🔍 Check mit {prompt_configs['check']['name']}...")
         
-        # Konvertierung für Check Input (Artikel muss String sein)
+        # Konvertierung für Check Input
         article_text_for_check = json.dumps(article_data, ensure_ascii=False) if isinstance(article_data, dict) else str(article_data)
         
         check_text = self.step_check(prompt_configs['check'], article_text_for_check, json_data, full_raw_input, model_settings)
@@ -142,7 +141,7 @@ class WorkflowProcessor:
         return self._api_call(system_prompt, user_msg, False, model_settings, "gemini-final-check")
 
     # ----------------------------------------------------------------
-    # API CALL
+    # API CALL (MIT FIX FÜR JSON CONTROL CHARS)
     # ----------------------------------------------------------------
 
     def _api_call(self, system_prompt, user_input, json_mode, model_settings, name):
@@ -189,11 +188,22 @@ class WorkflowProcessor:
                 
                 if json_mode:
                     clean = text_response.replace("```json", "").replace("```", "").strip()
-                    return json.loads(clean)
+                    try:
+                        # FIX: strict=False erlaubt Zeilenumbrüche in Strings!
+                        return json.loads(clean, strict=False)
+                    except json.JSONDecodeError as je:
+                        print(f"JSON Error: {je}")
+                        # Notfall-Rückgabe, damit der Workflow nicht crasht
+                        return {
+                            "error": "JSON Parsing Failed", 
+                            "raw_text": clean,
+                            "online": {"ueberschrift": "Fehler bei der Generierung", "body": clean},
+                            "print": {"text": "Formatierungsfehler"}
+                        }
                 return text_response
 
         except Exception as e:
-            print(f"Tracking Error: {e}")
+            print(f"Tracking/API Error: {e}")
             return self._execute_gemini(full_system_prompt, user_input, model_name, settings.get("temp"), json_mode)
 
     def _execute_gemini(self, system_prompt, user_input, model, temp, json_mode):
@@ -207,7 +217,10 @@ class WorkflowProcessor:
         text = response.text
         if json_mode:
             clean = text.replace("```json", "").replace("```", "").strip()
-            return json.loads(clean)
+            try:
+                return json.loads(clean, strict=False) # Auch hier strict=False
+            except Exception:
+                return {"error": "JSON Parsing Failed", "raw_text": text}
         return text
 
     def flush_stats(self):
